@@ -380,7 +380,7 @@ export default function GrantTracker() {
               <button className="tab active"><Award size={14} /> All Grants</button>
             </div>
             <div className="tab-content">
-              <AllGrantsView />
+              <AllGrantsView selectedGrant={selectedGrant} onSelectGrant={setSelectedGrant} />
             </div>
           </>
         ) : (
@@ -1185,7 +1185,7 @@ function GrantsTab({ project, onSelectGrant, selectedGrant, onRefresh, onContext
 }
 
 /* ─── All Grants View ──────────────────── */
-function AllGrantsView() {
+function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: ProjectGrantLink | null; onSelectGrant: (g: ProjectGrantLink | null) => void }) {
   const [grants, setGrants] = useState<Grant[]>([])
   const [showArchived, setShowArchived] = useState(false)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
@@ -1196,8 +1196,14 @@ function AllGrantsView() {
     params.set('archived', showArchived ? 'all' : 'false')
     if (tagFilter) params.set('tag', tagFilter)
     const res = await fetch(`/api/grants?${params}`)
-    setGrants(await res.json())
+    const data = await res.json()
+    setGrants(data)
     setLoading(false)
+    // Update selectedGrant if it was refreshed
+    if (selectedGrant) {
+      const updated = data.find((g: Grant) => g.id === selectedGrant.grantId)
+      if (updated) onSelectGrant({ ...selectedGrant, grant: updated })
+    }
   }, [showArchived, tagFilter])
 
   useEffect(() => { fetchGrants() }, [fetchGrants])
@@ -1247,8 +1253,20 @@ function AllGrantsView() {
           <span>Grant Name</span><span>Funder</span><span>Deadline</span><span>Amount</span><span>Projects</span><span></span>
         </div>
         {grants.map(g => (
-          <div key={g.id} className={`grant-row ${g.archived ? 'archived-row' : ''} ${!g.seen ? 'grant-new' : ''}`}
-            style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 80px' }}>
+          <div key={g.id} className={`grant-row ${g.archived ? 'archived-row' : ''} ${!g.seen ? 'grant-new' : ''} ${selectedGrant?.grantId === g.id ? 'selected' : ''}`}
+            style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 80px' }}
+            onClick={async () => {
+              if (!g.seen) {
+                await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
+                fetchGrants()
+              }
+              const pgLink: ProjectGrantLink = {
+                id: `all-${g.id}`, projectId: '', grantId: g.id,
+                status: 'identified', matchScore: 0, relevance: '', notes: '',
+                grant: { ...g, seen: true }
+              }
+              onSelectGrant(pgLink)
+            }}>
             <span style={{ fontWeight: 500, opacity: g.archived ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
               {g.name}
               {!g.seen && <span className="new-badge">NEW</span>}
@@ -1266,7 +1284,7 @@ function AllGrantsView() {
               ))}
               {(!g.projectLinks || g.projectLinks.length === 0) && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
               {!g.seen ? (
                 <button className="btn-icon" title="Mark as seen" onClick={async () => {
                   await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
