@@ -6,7 +6,7 @@ import {
   Microscope, BookOpen, Users, FileText, BarChart3, Award, ChevronRight,
   X, ExternalLink, Star, Trash2, Edit3, Check, FolderOpenDot, Save,
   Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard, User,
-  GraduationCap, Medal, Briefcase, Lightbulb, Wrench
+  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -154,6 +154,7 @@ export default function GrantTracker() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Show toast notification
@@ -348,7 +349,7 @@ export default function GrantTracker() {
             </div>
           ))}
         </div>
-        {showAddProject ? (
+        {showAddProject && (
           <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
             <input className="input" placeholder="Project name" value={newProjectName}
               onChange={e => setNewProjectName(e.target.value)}
@@ -356,13 +357,15 @@ export default function GrantTracker() {
             <button className="btn btn-primary btn-sm" onClick={addProject}><Check size={14} /></button>
             <button className="btn btn-sm" onClick={() => setShowAddProject(false)}><X size={14} /></button>
           </div>
-        ) : (
-          <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)' }}>
-            <button className="btn btn-sm" style={{ width: '100%' }} onClick={() => setShowAddProject(true)}>
-              <Plus size={14} /> Add Project
-            </button>
-          </div>
         )}
+        <div style={{ padding: '4px 12px 8px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
+          <button className="btn btn-sm" style={{ flex: 1 }} onClick={() => setShowAddProject(true)}>
+            <Plus size={14} /> Add Project
+          </button>
+          <button className="btn btn-sm" onClick={() => setShowHelp(true)} title="Help & Documentation">
+            <HelpCircle size={14} />
+          </button>
+        </div>
       </div>
 
       {/* ─── Main Panel ──────────────── */}
@@ -489,6 +492,82 @@ export default function GrantTracker() {
               <div className="shortcut-row"><kbd>Esc</kbd><span>Close panel / menu</span></div>
               <div className="shortcut-row"><kbd>?</kbd><span>Toggle this panel</span></div>
               <div className="shortcut-row"><kbd>Right-click</kbd><span>Context menu on grant rows</span></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Help Modal ────────────────── */}
+      {showHelp && (
+        <div className="shortcuts-overlay" onClick={() => setShowHelp(false)}>
+          <div className="shortcuts-panel" style={{ maxWidth: 600, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+            <div className="shortcuts-header">
+              <HelpCircle size={16} /> Help & Documentation
+              <button className="btn-icon" onClick={() => setShowHelp(false)}><X size={14} /></button>
+            </div>
+            <div style={{ padding: 16, fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)' }}>
+              <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 8 }}>🚀 How This App Works</h3>
+              <p style={{ marginBottom: 12 }}>
+                Grant Tracker is a project workspace for organising funding opportunities. Each project holds its own description, state of the art, bibliography, partners, budget, timeline, deliverables, and linked grants.
+              </p>
+
+              <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 8 }}>🤖 Antigravity AI Integration</h3>
+              <p style={{ marginBottom: 6 }}>
+                This app is designed to work with the <strong>Antigravity AI agent</strong>. The agent can:
+              </p>
+              <ul style={{ paddingLeft: 20, marginBottom: 12 }}>
+                <li><strong>Search for grants</strong> — run <code>/search-grants</code> to find funding opportunities across 30+ databases</li>
+                <li><strong>Populate projects</strong> — write descriptions, state of art, and bibliography</li>
+                <li><strong>Add partners</strong> — identify potential collaborators</li>
+                <li><strong>Manage grants</strong> — add, link, score, and archive grants via API</li>
+              </ul>
+
+              <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 8 }}>📂 Where Things Live</h3>
+              <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, marginBottom: 12, fontFamily: 'monospace', fontSize: 11, lineHeight: 1.8 }}>
+                <div><strong style={{ color: 'var(--accent-blue)' }}>.agents/workflows/</strong></div>
+                <div style={{ paddingLeft: 16 }}>search-grants.md — grant search workflow (10 phases)</div>
+                <div style={{ marginTop: 8 }}><strong style={{ color: 'var(--accent-blue)' }}>.agents/data/</strong></div>
+                <div style={{ paddingLeft: 16 }}>GRANT_SOURCES.md — 30 funding source databases (FR/EU/IL/US)</div>
+                <div style={{ paddingLeft: 16 }}>grant-search-runs.log.md — run history log</div>
+                <div style={{ marginTop: 8 }}><strong style={{ color: 'var(--accent-blue)' }}>applications/grant-tracker/</strong></div>
+                <div style={{ paddingLeft: 16 }}>src/app/page.tsx — main app (this file)</div>
+                <div style={{ paddingLeft: 16 }}>prisma/schema.prisma — database schema</div>
+                <div style={{ paddingLeft: 16 }}>prisma/dev.db — SQLite database</div>
+              </div>
+
+              <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 8 }}>🔍 Grant Search Workflow</h3>
+              <p style={{ marginBottom: 6 }}>Run <code>/search-grants</code> to start a search. The workflow:</p>
+              <ol style={{ paddingLeft: 20, marginBottom: 12 }}>
+                <li>Loads your projects, profile, and existing grants</li>
+                <li>Checks which source databases are due for a search</li>
+                <li>Searches each source + runs broader web searches (EN + FR)</li>
+                <li>Filters: deduplicates, checks ≥€5k, deadline &gt;14 days</li>
+                <li>Adds new grants with <span className="new-badge" style={{ position: 'relative', animation: 'none' }}>NEW</span> badges</li>
+                <li>Links grants to matching projects with relevance scores</li>
+                <li>Logs results to the run log</li>
+              </ol>
+
+              <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 8 }}>💡 Tips</h3>
+              <ul style={{ paddingLeft: 20, marginBottom: 12 }}>
+                <li>Right-click grants for context menu (archive, mark as new, remove)</li>
+                <li>Click partners to see/edit details in the right panel</li>
+                <li>Press <kbd style={{ background: 'var(--bg-tertiary)', padding: '2px 6px', borderRadius: 4, fontSize: 11 }}>?</kbd> for keyboard shortcuts</li>
+                <li>Use the <strong>Delete All</strong> button in All Grants to reset during testing</li>
+                <li>Grants requiring a collaborator are flagged with ⚠️ in description</li>
+              </ul>
+
+              <h3 style={{ fontSize: 14, color: 'var(--text-primary)', marginBottom: 8 }}>🌐 API Endpoints</h3>
+              <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, fontFamily: 'monospace', fontSize: 11, lineHeight: 1.8 }}>
+                <div>GET  /api/projects — list projects</div>
+                <div>GET  /api/grants?archived=all — all grants</div>
+                <div>POST /api/grants — create grant</div>
+                <div>PUT  /api/grants/:id — update grant</div>
+                <div>DELETE /api/grants — delete all grants</div>
+                <div>POST /api/project-grants — link grant to project</div>
+                <div>GET  /api/profile — user profile</div>
+                <div>POST /api/bibliography — add reference</div>
+                <div>POST /api/partners — add partner</div>
+              </div>
             </div>
           </div>
         </div>
