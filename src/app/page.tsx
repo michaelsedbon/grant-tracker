@@ -53,9 +53,10 @@ interface ContextMenuState {
   x: number; y: number; pgId: string; grantId: string; grantName: string;
 }
 
-interface PaperInfo {
-  filename: string; title: string; sizeBytes: number;
-  subjects: string; url: string; summary: string;
+interface PaperNode {
+  name: string; type: 'file' | 'folder'; path: string;
+  sizeBytes?: number; subjects?: string; url?: string; summary?: string;
+  children?: PaperNode[];
 }
 
 interface ProjectGrantLink {
@@ -536,19 +537,18 @@ function MarkdownTab({ project, field, label, onUpdate }: { project: Project; fi
 
 /* ─── Tab: Bibliography ──────────────── */
 function BibliographyTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
-  const [adding, setAdding] = useState(false)
-  const [form, setForm] = useState({ title: '', authors: '', year: '', doi: '', journal: '', notes: '' })
-  const [papers, setPapers] = useState<PaperInfo[]>([])
+  const [showPicker, setShowPicker] = useState(false)
+  const [papers, setPapers] = useState<PaperNode[]>([])
   const [selectedPaper, setSelectedPaper] = useState<string | null>(null)
-  const [pdfPanelWidth, setPdfPanelWidth] = useState(50) // percentage
-  const [search, setSearch] = useState('')
+  const [pdfPanelWidth, setPdfPanelWidth] = useState(50)
+  const [pickerSearch, setPickerSearch] = useState('')
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set())
   const resizing = useRef(false)
 
-  useEffect(() => {
+  const loadPapers = () => {
     fetch('/api/papers').then(r => r.json()).then(setPapers).catch(() => {})
-  }, [])
+  }
 
-  // Resizable panel drag handler
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!resizing.current) return
@@ -561,111 +561,130 @@ function BibliographyTab({ project, onRefresh }: { project: Project; onRefresh: 
     return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
   }, [])
 
-  const addEntry = async () => {
-    await fetch('/api/bibliography', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, year: form.year ? parseInt(form.year) : null, projectId: project.id })
-    })
-    setForm({ title: '', authors: '', year: '', doi: '', journal: '', notes: '' })
-    setAdding(false)
-    onRefresh()
-  }
-
   const deleteEntry = async (id: string) => {
     await fetch(`/api/bibliography/${id}`, { method: 'DELETE' })
     onRefresh()
   }
 
-  const filteredPapers = papers.filter(p =>
-    p.title.toLowerCase().includes(search.toLowerCase()) ||
-    p.subjects.toLowerCase().includes(search.toLowerCase())
-  )
+  const addPaperRef = async (node: PaperNode) => {
+    const title = node.name.replace('.pdf', '').replace(/_/g, ' ')
+    await fetch('/api/bibliography', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: project.id, title, notes: `file:${node.path}`, journal: node.subjects || '' })
+    })
+    onRefresh()
+  }
+
+  const isAdded = (filename: string) => {
+    const title = filename.replace('.pdf', '').replace(/_/g, ' ')
+    return project.bibEntries?.some(b => b.title === title) || false
+  }
+
+  const getPdfPath = (entry: { notes: string }) => {
+    if (entry.notes?.startsWith('file:')) return entry.notes.slice(5)
+    return null
+  }
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path); else next.add(path)
+      return next
+    })
+  }
+
+  const flattenTree = (nodes: PaperNode[]): PaperNode[] => {
+    const result: PaperNode[] = []
+    for (const n of nodes) {
+      if (n.type === 'file') result.push(n)
+      if (n.children) result.push(...flattenTree(n.children))
+    }
+    return result
+  }
+
+  const renderNode = (node: PaperNode, depth: number = 0): React.ReactNode => {
+    if (node.type === 'folder') {
+      const isOpen = expandedFolders.has(node.path)
+      return (
+        <div key={node.path}>
+          <div className="picker-row" style={{ paddingLeft: 12 + depth * 16 }} onClick={() => toggleFolder(node.path)}>
+            <FolderOpenDot size={14} style={{ color: 'var(--accent-yellow, #dcdcaa)', flexShrink: 0 }} />
+            <span style={{ fontWeight: 500, fontSize: 12 }}>{node.name}</span>
+            <ChevronRight size={12} style={{ marginLeft: 'auto', transform: isOpen ? 'rotate(90deg)' : 'none', transition: 'transform 150ms' }} />
+          </div>
+          {isOpen && node.children?.map(c => renderNode(c, depth + 1))}
+        </div>
+      )
+    }
+    const added = isAdded(node.name)
+    return (
+      <div key={node.path} className={`picker-row ${added ? 'added' : ''}`}
+        style={{ paddingLeft: 12 + depth * 16 }}
+        onClick={() => { if (!added) addPaperRef(node) }}>
+        <FileText size={14} style={{ flexShrink: 0, color: added ? 'var(--text-muted)' : 'var(--accent-blue)' }} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {node.name.replace('.pdf', '').replace(/_/g, ' ')}
+          </div>
+          {node.subjects && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{node.subjects}</div>}
+        </div>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
+          {added ? <Check size={12} style={{ color: 'var(--accent-green, #4ec9b0)' }} /> : `${((node.sizeBytes || 0) / 1024 / 1024).toFixed(1)} MB`}
+        </span>
+      </div>
+    )
+  }
+
+  const getFilteredNodes = (): PaperNode[] => {
+    if (!pickerSearch.trim()) return papers
+    return flattenTree(papers).filter(p =>
+      p.name.toLowerCase().includes(pickerSearch.toLowerCase()) ||
+      (p.subjects || '').toLowerCase().includes(pickerSearch.toLowerCase())
+    )
+  }
 
   return (
     <div style={{ display: 'flex', height: '100%', gap: 0 }}>
-      {/* Left: paper list + project references */}
-      <div style={{ flex: selectedPaper ? `0 0 ${100 - pdfPanelWidth}%` : '1', overflowY: 'auto', paddingRight: selectedPaper ? 0 : 0 }}>
-        {/* Available papers from filesystem */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <FileText size={15} /> Available Papers ({filteredPapers.length})
-            </h3>
-          </div>
-          <input className="input" placeholder="Search papers..." value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{ marginBottom: 8 }} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {filteredPapers.map(p => (
-              <div key={p.filename}
-                className={`paper-row ${selectedPaper === p.filename ? 'selected' : ''}`}
-                onClick={() => setSelectedPaper(selectedPaper === p.filename ? null : p.filename)}>
-                <FileText size={14} style={{ flexShrink: 0, color: 'var(--accent-blue)' }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 500, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
-                  {p.subjects && <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>{p.subjects}</div>}
-                </div>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', flexShrink: 0 }}>
-                  {(p.sizeBytes / 1024 / 1024).toFixed(1)} MB
-                </span>
-              </div>
-            ))}
-            {filteredPapers.length === 0 && (
-              <div className="empty-state" style={{ padding: 16 }}><FileText size={24} /><p>No papers found</p></div>
-            )}
-          </div>
+      {/* Main: project references table */}
+      <div style={{ flex: selectedPaper ? `0 0 ${100 - pdfPanelWidth}%` : '1', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <BookOpen size={15} /> Project References ({project.bibEntries?.length || 0})
+          </h3>
+          <button className="btn btn-sm" onClick={() => { setShowPicker(true); loadPapers(); setPickerSearch('') }}>
+            <Plus size={14} /> Add Reference
+          </button>
         </div>
 
-        {/* Divider */}
-        <div style={{ borderTop: '1px solid var(--border)', marginBottom: 16, paddingTop: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <BookOpen size={15} /> Project References ({project.bibEntries?.length || 0})
-            </h3>
-            <button className="btn btn-sm" onClick={() => setAdding(!adding)}><Plus size={14} /> Add Reference</button>
-          </div>
-          {adding && (
-            <div className="section-card" style={{ marginBottom: 12 }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div className="field-group"><label className="field-label">Title</label><input className="input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></div>
-                <div className="field-group"><label className="field-label">Authors</label><input className="input" value={form.authors} onChange={e => setForm({ ...form, authors: e.target.value })} /></div>
-                <div className="field-group"><label className="field-label">Year</label><input className="input" type="number" value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} /></div>
-                <div className="field-group"><label className="field-label">DOI</label><input className="input" value={form.doi} onChange={e => setForm({ ...form, doi: e.target.value })} /></div>
-                <div className="field-group"><label className="field-label">Journal</label><input className="input" value={form.journal} onChange={e => setForm({ ...form, journal: e.target.value })} /></div>
-                <div className="field-group"><label className="field-label">Notes</label><input className="input" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={addEntry}>Save</button>
-                <button className="btn btn-sm" onClick={() => setAdding(false)}>Cancel</button>
-              </div>
-            </div>
-          )}
-          {!project.bibEntries?.length ? (
-            <div className="empty-state"><BookOpen size={32} /><p>No references yet</p></div>
-          ) : (
-            project.bibEntries.map(b => (
-              <div key={b.id} className="section-card" style={{ padding: '10px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{b.title}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {b.authors}{b.year ? ` (${b.year})` : ''}{b.journal ? ` — ${b.journal}` : ''}
+        {!project.bibEntries?.length ? (
+          <div className="empty-state"><BookOpen size={32} /><p>No references yet. Click Add Reference to browse papers.</p></div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {project.bibEntries.map(b => {
+              const pdfPath = getPdfPath(b)
+              return (
+                <div key={b.id} className={`paper-row ${selectedPaper === pdfPath ? 'selected' : ''}`}
+                  onClick={() => { if (pdfPath) setSelectedPaper(selectedPaper === pdfPath ? null : pdfPath) }}
+                  style={{ cursor: pdfPath ? 'pointer' : 'default' }}>
+                  <FileText size={14} style={{ flexShrink: 0, color: 'var(--accent-blue)' }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.title}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {b.authors && `${b.authors} `}{b.year ? `(${b.year}) ` : ''}{b.journal || ''}
                     </div>
-                    {b.doi && <a href={`https://doi.org/${b.doi}`} target="_blank" className="detail-link" style={{ fontSize: 11 }}>DOI: {b.doi}</a>}
                   </div>
-                  <button className="btn-icon" onClick={() => deleteEntry(b.id)}><Trash2 size={14} /></button>
+                  <button className="btn-icon" onClick={(e) => { e.stopPropagation(); deleteEntry(b.id) }}><Trash2 size={13} /></button>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* Resize handle + PDF viewer side panel */}
       {selectedPaper && (
         <>
-          <div className="pdf-resize-handle"
-            onMouseDown={() => { resizing.current = true }} />
+          <div className="pdf-resize-handle" onMouseDown={() => { resizing.current = true }} />
           <div className="pdf-panel" style={{ width: `${pdfPanelWidth}%` }}>
             <div className="pdf-panel-header">
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -673,19 +692,39 @@ function BibliographyTab({ project, onRefresh }: { project: Project; onRefresh: 
               </span>
               <button className="btn-icon" onClick={() => setSelectedPaper(null)}><X size={14} /></button>
             </div>
-            <iframe
-              src={`/api/papers/${encodeURIComponent(selectedPaper)}`}
-              style={{ width: '100%', flex: 1, border: 'none', background: '#fff' }}
-              title="PDF Viewer"
-            />
+            <iframe src={`/api/papers/${encodeURIComponent(selectedPaper)}`}
+              style={{ width: '100%', flex: 1, border: 'none', background: '#fff' }} title="PDF Viewer" />
           </div>
         </>
+      )}
+
+      {/* Paper Picker Modal */}
+      {showPicker && (
+        <div className="shortcuts-overlay" onClick={() => setShowPicker(false)}>
+          <div className="picker-modal" onClick={e => e.stopPropagation()}>
+            <div className="picker-header">
+              <FolderOpen size={16} />
+              <span>Select a Paper</span>
+              <button className="btn-icon" style={{ marginLeft: 'auto' }} onClick={() => setShowPicker(false)}><X size={14} /></button>
+            </div>
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>
+              <input className="input" placeholder="Search papers..." value={pickerSearch}
+                onChange={e => setPickerSearch(e.target.value)} autoFocus />
+            </div>
+            <div className="picker-body">
+              {getFilteredNodes().map(n => renderNode(n))}
+              {getFilteredNodes().length === 0 && (
+                <div className="empty-state" style={{ padding: 24 }}><FileText size={24} /><p>No papers found</p></div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
 }
 
-/* ─── Tab: Partners ────────────────────── */
+
 function PartnersTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', institution: '', expertise: '', email: '', website: '', status: 'to_contact', notes: '' })

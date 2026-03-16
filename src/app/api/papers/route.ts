@@ -7,13 +7,15 @@ import { readFileSync, existsSync } from 'fs'
 const PAPERS_DIR = join(process.cwd(), '../../papers')
 const PAPERS_TXT_DIR = join(process.cwd(), '../../papers_txt')
 
-interface PaperInfo {
-  filename: string
-  title: string
-  sizeBytes: number
-  subjects: string
-  url: string
-  summary: string
+interface PaperNode {
+  name: string
+  type: 'file' | 'folder'
+  path: string          // relative path from papers root
+  sizeBytes?: number
+  subjects?: string
+  url?: string
+  summary?: string
+  children?: PaperNode[]
 }
 
 function parseIndex(): Map<string, { subjects: string; url: string; summary: string }> {
@@ -28,13 +30,11 @@ function parseIndex(): Map<string, { subjects: string; url: string; summary: str
     const fileMatch = section.match(/\*\*File:\*\*\s*`([^`]+)`/)
     const subjectsMatch = section.match(/\*\*Subjects:\*\*\s*(.+)/)
     const urlMatch = section.match(/\*\*URL:\*\*\s*(\S+)/)
-    const titleMatch = section.match(/^##\s+(.+)/m)
 
     if (fileMatch) {
       const txtFile = fileMatch[1]
       const pdfFile = txtFile.replace('.txt', '.pdf')
       const lines = section.trim().split('\n')
-      // Summary is the last paragraph block
       const summaryLines = lines.filter(l => !l.startsWith('#') && !l.startsWith('**') && l.trim().length > 0)
       map.set(pdfFile, {
         subjects: subjectsMatch?.[1] || '',
@@ -46,33 +46,48 @@ function parseIndex(): Map<string, { subjects: string; url: string; summary: str
   return map
 }
 
+async function buildTree(dirPath: string, relativePath: string, index: Map<string, { subjects: string; url: string; summary: string }>): Promise<PaperNode[]> {
+  const entries = await readdir(dirPath, { withFileTypes: true })
+  const nodes: PaperNode[] = []
+
+  for (const entry of entries) {
+    const entryRelPath = relativePath ? `${relativePath}/${entry.name}` : entry.name
+    const fullPath = join(dirPath, entry.name)
+
+    if (entry.isDirectory()) {
+      const children = await buildTree(fullPath, entryRelPath, index)
+      if (children.length > 0) {
+        nodes.push({ name: entry.name, type: 'folder', path: entryRelPath, children })
+      }
+    } else if (entry.name.endsWith('.pdf')) {
+      const fileInfo = await stat(fullPath)
+      const meta = index.get(entry.name) || { subjects: '', url: '', summary: '' }
+      nodes.push({
+        name: entry.name,
+        type: 'file',
+        path: entryRelPath,
+        sizeBytes: fileInfo.size,
+        subjects: meta.subjects,
+        url: meta.url,
+        summary: meta.summary
+      })
+    }
+  }
+
+  // Sort: folders first, then files alphabetically
+  nodes.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1
+    return a.name.localeCompare(b.name)
+  })
+
+  return nodes
+}
+
 export async function GET(): Promise<Response> {
   try {
-    const files = await readdir(PAPERS_DIR)
-    const pdfs = files.filter(f => f.endsWith('.pdf'))
     const index = parseIndex()
-
-    const papers: PaperInfo[] = await Promise.all(
-      pdfs.map(async (filename) => {
-        const filePath = join(PAPERS_DIR, filename)
-        const fileInfo = await stat(filePath)
-        const meta = index.get(filename) || { subjects: '', url: '', summary: '' }
-        const title = filename
-          .replace('.pdf', '')
-          .replace(/_/g, ' ')
-        return {
-          filename,
-          title,
-          sizeBytes: fileInfo.size,
-          subjects: meta.subjects,
-          url: meta.url,
-          summary: meta.summary
-        }
-      })
-    )
-
-    papers.sort((a, b) => a.title.localeCompare(b.title))
-    return NextResponse.json(papers)
+    const tree = await buildTree(PAPERS_DIR, '', index)
+    return NextResponse.json(tree)
   } catch (error) {
     console.error('GET /api/papers error:', error)
     return NextResponse.json({ error: String(error) }, { status: 500 })
