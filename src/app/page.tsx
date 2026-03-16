@@ -10,6 +10,7 @@ import {
 import dynamic from 'next/dynamic'
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
+const MarkdownPreview = dynamic(() => import('@uiw/react-md-editor').then(mod => mod.default.Markdown), { ssr: false })
 
 /* ─── Action History for Undo/Redo ───── */
 interface UndoAction {
@@ -501,7 +502,11 @@ function OverviewTab({ project, onUpdate, onRefresh }: { project: Project; onUpd
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{project.description || <span style={{ color: 'var(--text-muted)' }}>No description yet. Click Edit to add one.</span>}</div>
+          project.description ? (
+            <div data-color-mode="dark"><MarkdownPreview source={project.description} style={{ background: 'transparent', fontSize: 13 }} /></div>
+          ) : (
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No description yet. Click Edit to add one.</div>
+          )
         )}
       </div>
     </>
@@ -513,12 +518,14 @@ function MarkdownTab({ project, field, label, onUpdate }: { project: Project; fi
   const value = (project as unknown as Record<string, unknown>)[field] as string || ''
   const [text, setText] = useState(value)
   const [saved, setSaved] = useState(true)
+  const [editing, setEditing] = useState(false)
 
   useEffect(() => { setText(value) }, [value])
 
   const save = () => {
     onUpdate(field, text)
     setSaved(true)
+    setEditing(false)
   }
 
   return (
@@ -526,11 +533,26 @@ function MarkdownTab({ project, field, label, onUpdate }: { project: Project; fi
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <h3 style={{ fontSize: 15, fontWeight: 600 }}>{label}</h3>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {!saved && <span style={{ fontSize: 11, color: 'var(--accent-orange)' }}>Unsaved changes</span>}
-          <button className="btn btn-primary btn-sm" onClick={save}><Save size={12} /> Save</button>
+          {editing && !saved && <span style={{ fontSize: 11, color: 'var(--accent-orange)' }}>Unsaved changes</span>}
+          {editing ? (
+            <>
+              <button className="btn btn-primary btn-sm" onClick={save}><Save size={12} /> Save</button>
+              <button className="btn btn-sm" onClick={() => { setText(value); setSaved(true); setEditing(false) }}>Cancel</button>
+            </>
+          ) : (
+            <button className="btn btn-sm" onClick={() => setEditing(true)}><Edit3 size={12} /> Edit</button>
+          )}
         </div>
       </div>
-      <MDEditor value={text} onChange={(v) => { setText(v || ''); setSaved(false) }} data-color-mode="dark" height={500} />
+      {editing ? (
+        <MDEditor value={text} onChange={(v) => { setText(v || ''); setSaved(false) }} data-color-mode="dark" height={500} />
+      ) : (
+        value ? (
+          <div data-color-mode="dark"><MarkdownPreview source={value} style={{ background: 'transparent', fontSize: 13 }} /></div>
+        ) : (
+          <div className="empty-state"><FileText size={32} /><p>No content yet. Click Edit to add {label.toLowerCase()}.</p></div>
+        )
+      )}
     </div>
   )
 }
