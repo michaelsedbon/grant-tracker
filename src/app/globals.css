@@ -302,6 +302,26 @@ html, body {
 
 .grant-row:hover { background: var(--bg-hover); }
 .grant-row.selected { background: var(--bg-active); border-left: 2px solid var(--accent-blue); }
+.grant-row.grant-new { border-left: 2px solid var(--accent-orange); background: rgba(255, 160, 50, 0.04); }
+
+.new-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--accent-orange);
+  color: var(--bg-primary);
+  animation: badge-glow 2s ease-in-out infinite;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+@keyframes badge-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 160, 50, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(255, 160, 50, 0.8), 0 0 20px rgba(255, 160, 50, 0.3); }
+}
 
 .grant-header {
   display: grid;

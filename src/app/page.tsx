@@ -46,7 +46,7 @@ interface Grant {
   currency: string; deadline: string | null; duration: string;
   url: string; portalUrl: string; faqUrl: string;
   eligibility: string; trlLevel: string; tags: string;
-  notes: string; archived: boolean; createdAt: string; updatedAt: string;
+  notes: string; archived: boolean; seen: boolean; createdAt: string; updatedAt: string;
   documents?: Document[];
   projectLinks?: { project: { id: string; name: string; color: string } }[];
 }
@@ -431,6 +431,14 @@ export default function GrantTracker() {
           </button>
           <button className="context-menu-item" onClick={() => archiveGrant(contextMenu.grantId)}>
             <Archive size={13} /> Archive grant
+          </button>
+          <button className="context-menu-item" onClick={async () => {
+            await fetch(`/api/grants/${contextMenu.grantId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: false }) })
+            fetchProjectDetail()
+            setContextMenu(null)
+            showToast('Marked as new')
+          }}>
+            <Star size={13} /> Mark as new
           </button>
           <div className="context-menu-divider" />
           <button className="context-menu-item" onClick={() => {
@@ -1146,10 +1154,19 @@ function GrantsTab({ project, onSelectGrant, selectedGrant, onRefresh, onContext
           <span>Grant Name</span><span>Funder</span><span>Deadline</span><span>Amount</span><span>Status</span><span>Match</span>
         </div>
         {project.grantLinks?.map(pg => (
-          <div key={pg.id} className={`grant-row ${selectedGrant?.id === pg.id ? 'selected' : ''}`}
-            onClick={() => onSelectGrant(pg)}
+          <div key={pg.id} className={`grant-row ${selectedGrant?.id === pg.id ? 'selected' : ''} ${!pg.grant.seen ? 'grant-new' : ''}`}
+            onClick={async () => {
+              if (!pg.grant.seen) {
+                await fetch(`/api/grants/${pg.grant.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
+                onRefresh()
+              }
+              onSelectGrant(pg)
+            }}
             onContextMenu={(e) => onContextMenu(e, pg)}>
-            <span style={{ fontWeight: 500 }}>{pg.grant.name}</span>
+            <span style={{ fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {pg.grant.name}
+              {!pg.grant.seen && <span className="new-badge">NEW</span>}
+            </span>
             <span style={{ color: 'var(--text-secondary)' }}>{pg.grant.funder}</span>
             <span className={deadlineClass(pg.grant.deadline)}>
               {formatDate(pg.grant.deadline)} <span style={{ fontSize: 10, opacity: 0.7 }}>{daysUntil(pg.grant.deadline)}</span>
@@ -1226,13 +1243,16 @@ function AllGrantsView() {
       )}
 
       <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-        <div className="grant-header" style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 60px' }}>
+        <div className="grant-header" style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 80px' }}>
           <span>Grant Name</span><span>Funder</span><span>Deadline</span><span>Amount</span><span>Projects</span><span></span>
         </div>
         {grants.map(g => (
-          <div key={g.id} className={`grant-row ${g.archived ? 'archived-row' : ''}`}
-            style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 60px' }}>
-            <span style={{ fontWeight: 500, opacity: g.archived ? 0.5 : 1 }}>{g.name}</span>
+          <div key={g.id} className={`grant-row ${g.archived ? 'archived-row' : ''} ${!g.seen ? 'grant-new' : ''}`}
+            style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 80px' }}>
+            <span style={{ fontWeight: 500, opacity: g.archived ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {g.name}
+              {!g.seen && <span className="new-badge">NEW</span>}
+            </span>
             <span style={{ color: 'var(--text-secondary)' }}>{g.funder}</span>
             <span className={deadlineClass(g.deadline)}>
               {formatDate(g.deadline)} <span style={{ fontSize: 10, opacity: 0.7 }}>{daysUntil(g.deadline)}</span>
@@ -1246,10 +1266,23 @@ function AllGrantsView() {
               ))}
               {(!g.projectLinks || g.projectLinks.length === 0) && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}
             </div>
-            <button className="btn-icon" title={g.archived ? 'Unarchive' : 'Archive'}
-              onClick={() => toggleArchive(g.id, g.archived)}>
-              {g.archived ? <Eye size={14} /> : <Archive size={14} />}
-            </button>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {!g.seen ? (
+                <button className="btn-icon" title="Mark as seen" onClick={async () => {
+                  await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
+                  fetchGrants()
+                }}><Eye size={14} /></button>
+              ) : (
+                <button className="btn-icon" title="Mark as new" onClick={async () => {
+                  await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: false }) })
+                  fetchGrants()
+                }}><Star size={14} /></button>
+              )}
+              <button className="btn-icon" title={g.archived ? 'Unarchive' : 'Archive'}
+                onClick={() => toggleArchive(g.id, g.archived)}>
+                {g.archived ? <Eye size={14} /> : <Archive size={14} />}
+              </button>
+            </div>
           </div>
         ))}
         {grants.length === 0 && (
