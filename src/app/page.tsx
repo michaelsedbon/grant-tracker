@@ -5,7 +5,8 @@ import {
   FolderOpen, Plus, Search, ClipboardList, Target, DollarSign, Calendar,
   Microscope, BookOpen, Users, FileText, BarChart3, Award, ChevronRight,
   X, ExternalLink, Star, Trash2, Edit3, Check, FolderOpenDot, Save,
-  Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard
+  Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard, User,
+  GraduationCap, Medal, Briefcase, Lightbulb, Wrench
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -148,6 +149,7 @@ export default function GrantTracker() {
   const [newProjectName, setNewProjectName] = useState('')
   const [loading, setLoading] = useState(true)
   const [globalGrantsMode, setGlobalGrantsMode] = useState(false)
+  const [profileMode, setProfileMode] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -319,9 +321,16 @@ export default function GrantTracker() {
           <h2><FolderOpen size={16} /> Navigation</h2>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
+          {/* My Profile */}
+          <div className={`project-item ${profileMode ? 'active' : ''}`}
+            onClick={() => { setProfileMode(true); setGlobalGrantsMode(false); setSelectedGrant(null) }}>
+            <span className="project-dot" style={{ backgroundColor: 'var(--accent-orange)' }} />
+            <span className="project-name">My Profile</span>
+            <User size={12} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
+          </div>
           {/* All Grants global view */}
-          <div className={`project-item ${globalGrantsMode ? 'active' : ''}`}
-            onClick={() => { setGlobalGrantsMode(true); setSelectedGrant(null) }}>
+          <div className={`project-item ${!profileMode && globalGrantsMode ? 'active' : ''}`}
+            onClick={() => { setGlobalGrantsMode(true); setProfileMode(false); setSelectedGrant(null) }}>
             <span className="project-dot" style={{ backgroundColor: 'var(--accent-yellow)' }} />
             <span className="project-name">All Grants</span>
             <Tag size={12} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
@@ -329,8 +338,8 @@ export default function GrantTracker() {
           <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />
           {projects.map(p => (
             <div key={p.id}
-              className={`project-item ${!globalGrantsMode && p.id === selectedProjectId ? 'active' : ''}`}
-              onClick={() => { setSelectedProjectId(p.id); setGlobalGrantsMode(false); setSelectedGrant(null) }}>
+              className={`project-item ${!globalGrantsMode && !profileMode && p.id === selectedProjectId ? 'active' : ''}`}
+              onClick={() => { setSelectedProjectId(p.id); setGlobalGrantsMode(false); setProfileMode(false); setSelectedGrant(null) }}>
               <span className="project-dot" style={{ backgroundColor: p.color }} />
               <span className="project-name">{p.name}</span>
               <span className="project-status">{p.status === 'placeholder' ? '○' : ''}</span>
@@ -356,7 +365,16 @@ export default function GrantTracker() {
 
       {/* ─── Main Panel ──────────────── */}
       <div className="main-panel">
-        {globalGrantsMode ? (
+        {profileMode ? (
+          <>
+            <div className="tab-bar">
+              <button className="tab active"><User size={14} /> Applicant Profile</button>
+            </div>
+            <div className="tab-content">
+              <ProfileView />
+            </div>
+          </>
+        ) : globalGrantsMode ? (
           <>
             <div className="tab-bar">
               <button className="tab active"><Award size={14} /> All Grants</button>
@@ -1354,5 +1372,169 @@ function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: 
         }}><FolderOpenDot size={12} /> Open in Finder</button>
       </div>
     </>
+  )
+}
+
+/* ─── Applicant Profile View ────────── */
+interface ProfileData {
+  name: string; title: string; location: string; website: string; email: string;
+  bio: string; education: { degree: string; institution: string; year: string }[];
+  awards: { name: string; year: string }[];
+  skills: string[]; keyWorks: { title: string; description: string }[];
+  researchInterests: string[]; publications: string; notes: string;
+}
+
+function ProfileView() {
+  const [profile, setProfile] = useState<ProfileData | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [bio, setBio] = useState('')
+  const [notes, setNotes] = useState('')
+  const [pubs, setPubs] = useState('')
+
+  const fetchProfile = useCallback(async () => {
+    const res = await fetch('/api/profile')
+    const data = await res.json()
+    if (data.name) {
+      setProfile(data)
+      setBio(data.bio || '')
+      setNotes(data.notes || '')
+      setPubs(data.publications || '')
+    }
+  }, [])
+
+  useEffect(() => { fetchProfile() }, [fetchProfile])
+
+  const saveField = async (field: string, value: string) => {
+    await fetch('/api/profile', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ [field]: value })
+    })
+    fetchProfile()
+  }
+
+  if (!profile) return <div className="empty-state"><User size={32} /><p>Loading profile...</p></div>
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20, marginBottom: 24 }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--accent-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <User size={28} style={{ color: 'var(--bg-primary)' }} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{profile.name}</h2>
+          <div style={{ fontSize: 14, color: 'var(--accent-blue)', marginBottom: 4 }}>{profile.title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', gap: 16 }}>
+            {profile.location && <span>{profile.location}</span>}
+            {profile.website && <a href={profile.website} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-blue)' }}>{profile.website}</a>}
+          </div>
+        </div>
+      </div>
+
+      {/* Bio */}
+      <div className="section-card">
+        <div className="section-title" style={{ justifyContent: 'space-between' }}>
+          <span><User size={14} /> Biography</span>
+          {!editing ? (
+            <button className="btn btn-sm" onClick={() => setEditing(true)}><Edit3 size={12} /> Edit</button>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => { saveField('bio', bio); setEditing(false) }}><Save size={12} /> Save</button>
+              <button className="btn btn-sm" onClick={() => { setBio(profile.bio); setEditing(false) }}>Cancel</button>
+            </div>
+          )}
+        </div>
+        {editing ? (
+          <MDEditor value={bio} onChange={v => setBio(v || '')} data-color-mode="dark" height={200} />
+        ) : (
+          <div data-color-mode="dark"><MarkdownPreview source={profile.bio} style={{ background: 'transparent', fontSize: 13 }} /></div>
+        )}
+      </div>
+
+      {/* Education + Awards side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="section-card">
+          <div className="section-title"><GraduationCap size={14} /> Education</div>
+          {profile.education?.map((e, i) => (
+            <div key={i} style={{ marginBottom: 8, fontSize: 13 }}>
+              <div style={{ fontWeight: 600 }}>{e.degree}</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{e.institution}{e.year ? ` (${e.year})` : ''}</div>
+            </div>
+          ))}
+        </div>
+        <div className="section-card">
+          <div className="section-title"><Medal size={14} /> Awards and Recognition</div>
+          {profile.awards?.map((a, i) => (
+            <div key={i} style={{ marginBottom: 6, fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+              <span>{a.name}</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{a.year}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Key Works */}
+      <div className="section-card">
+        <div className="section-title"><Briefcase size={14} /> Key Works and Projects</div>
+        {profile.keyWorks?.map((w, i) => (
+          <div key={i} style={{ marginBottom: 12, paddingBottom: 12, borderBottom: i < profile.keyWorks.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{w.title}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{w.description}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Skills + Research Interests side by side */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+        <div className="section-card">
+          <div className="section-title"><Wrench size={14} /> Skills</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {profile.skills?.map((s, i) => (
+              <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 12, background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>{s}</span>
+            ))}
+          </div>
+        </div>
+        <div className="section-card">
+          <div className="section-title"><Lightbulb size={14} /> Research Interests</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {profile.researchInterests?.map((r, i) => (
+              <span key={i} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 12, background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>{r}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Publications */}
+      <div className="section-card">
+        <div className="section-title" style={{ justifyContent: 'space-between' }}>
+          <span><BookOpen size={14} /> Publications and Notes</span>
+          <button className="btn btn-sm" onClick={() => {
+            const newPubs = prompt('Publications (markdown):', pubs)
+            if (newPubs !== null) { setPubs(newPubs); saveField('publications', newPubs) }
+          }}><Edit3 size={12} /> Edit</button>
+        </div>
+        {pubs ? (
+          <div data-color-mode="dark"><MarkdownPreview source={pubs} style={{ background: 'transparent', fontSize: 13 }} /></div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No publications listed yet.</p>
+        )}
+      </div>
+
+      {/* Notes */}
+      <div className="section-card">
+        <div className="section-title" style={{ justifyContent: 'space-between' }}>
+          <span><FileText size={14} /> Additional Notes</span>
+          <button className="btn btn-sm" onClick={() => {
+            const newNotes = prompt('Notes:', notes)
+            if (newNotes !== null) { setNotes(newNotes); saveField('notes', newNotes) }
+          }}><Edit3 size={12} /> Edit</button>
+        </div>
+        {notes ? (
+          <div data-color-mode="dark"><MarkdownPreview source={notes} style={{ background: 'transparent', fontSize: 13 }} /></div>
+        ) : (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No additional notes yet.</p>
+        )}
+      </div>
+    </div>
   )
 }
