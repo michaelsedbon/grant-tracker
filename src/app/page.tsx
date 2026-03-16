@@ -561,6 +561,17 @@ function BibliographyTab({ project, onRefresh }: { project: Project; onRefresh: 
     return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp) }
   }, [])
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (showPicker) setShowPicker(false)
+        else if (selectedPaper) setSelectedPaper(null)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [showPicker, selectedPaper])
+
   const deleteEntry = async (id: string) => {
     await fetch(`/api/bibliography/${id}`, { method: 'DELETE' })
     onRefresh()
