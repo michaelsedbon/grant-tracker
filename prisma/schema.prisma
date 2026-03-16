@@ -1,0 +1,176 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Project {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String   @default("")
+  color       String   @default("#569cd6")
+  status      String   @default("active")
+  stateOfArt  String   @default("")
+  impact      String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  budgetItems   BudgetItem[]
+  timelineItems TimelineItem[]
+  bibEntries    BibEntry[]
+  partners      Partner[]
+  deliverables  Deliverable[]
+  grantLinks    ProjectGrant[]
+}
+
+model Grant {
+  id          String    @id @default(uuid())
+  name        String
+  funder      String    @default("")
+  description String    @default("")
+  amount      String    @default("")
+  amountMin   Float?
+  amountMax   Float?
+  currency    String    @default("EUR")
+  deadline    DateTime?
+  duration    String    @default("")
+  url         String    @default("")
+  portalUrl   String    @default("")
+  faqUrl      String    @default("")
+  eligibility String    @default("")
+  trlLevel    String    @default("")
+  tags        String    @default("")
+  notes       String    @default("")
+  archived    Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  projectLinks ProjectGrant[]
+  documents    Document[]
+}
+
+model ProjectGrant {
+  id         String @id @default(uuid())
+  projectId  String
+  grantId    String
+  status     String @default("identified")
+  matchScore Int    @default(0)
+  relevance  String @default("")
+  notes      String @default("")
+
+  project  Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  grant    Grant   @relation(fields: [grantId], references: [id], onDelete: Cascade)
+
+  checklistItems ChecklistItem[]
+  budgetItems    BudgetItem[]
+
+  @@unique([projectId, grantId])
+}
+
+model ChecklistItem {
+  id             String  @id @default(uuid())
+  projectGrantId String
+  label          String
+  checked        Boolean @default(false)
+  content        String  @default("")
+  notes          String  @default("")
+  sortOrder      Int     @default(0)
+
+  projectGrant ProjectGrant @relation(fields: [projectGrantId], references: [id], onDelete: Cascade)
+  documents    Document[]
+}
+
+model BudgetItem {
+  id             String  @id @default(uuid())
+  projectId      String?
+  projectGrantId String?
+  category       String  @default("other")
+  label          String
+  amount         Float   @default(0)
+  notes          String  @default("")
+
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  projectGrant ProjectGrant? @relation(fields: [projectGrantId], references: [id], onDelete: Cascade)
+}
+
+model TimelineItem {
+  id        String    @id @default(uuid())
+  projectId String
+  label     String
+  startDate DateTime?
+  endDate   DateTime?
+  type      String    @default("milestone")
+  notes     String    @default("")
+  sortOrder Int       @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model BibEntry {
+  id        String @id @default(uuid())
+  projectId String
+  title     String
+  authors   String @default("")
+  year      Int?
+  doi       String @default("")
+  journal   String @default("")
+  notes     String @default("")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Partner {
+  id          String @id @default(uuid())
+  projectId   String
+  name        String
+  institution String @default("")
+  expertise   String @default("")
+  email       String @default("")
+  website     String @default("")
+  status      String @default("to_contact")
+  notes       String @default("")
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Deliverable {
+  id          String @id @default(uuid())
+  projectId   String
+  title       String
+  workPackage String @default("")
+  type        String @default("deliverable")
+  description String @default("")
+  dueMonth    Int?
+  sortOrder   Int    @default(0)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id              String  @id @default(uuid())
+  grantId         String?
+  checklistItemId String?
+  filename        String
+  originalName    String
+  label           String  @default("")
+  filePath        String
+  mimeType        String  @default("")
+  sizeBytes       Int     @default(0)
+  createdAt       DateTime @default(now())
+
+  grant         Grant?         @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id], onDelete: Cascade)
+}
+
+model ContentVersion {
+  id         String   @id @default(uuid())
+  entityType String
+  entityId   String
+  field      String
+  content    String
+  createdAt  DateTime @default(now())
+}
