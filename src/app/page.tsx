@@ -6,7 +6,7 @@ import {
   Microscope, BookOpen, Users, FileText, BarChart3, Award, ChevronRight,
   X, ExternalLink, Star, Trash2, Edit3, Check, FolderOpenDot, Save,
   Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard, User,
-  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle
+  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle, ChevronDown
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -1375,6 +1375,7 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
   const [grants, setGrants] = useState<Grant[]>([])
   const [showArchived, setShowArchived] = useState(false)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [showTags, setShowTags] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const fetchGrants = useCallback(async () => {
@@ -1429,17 +1430,35 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
         </div>
       </div>
 
-      {/* Tag filter pills */}
+      {/* Tag filter pills — collapsible */}
       {allTags.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
-          <button className={`badge ${!tagFilter ? 'badge-identified' : ''}`}
-            style={{ cursor: 'pointer', border: 'none' }}
-            onClick={() => setTagFilter(null)}>All</button>
-          {allTags.map(t => (
-            <button key={t} className={`badge ${tagFilter === t ? 'badge-identified' : ''}`}
-              style={{ cursor: 'pointer', border: 'none', opacity: tagFilter && tagFilter !== t ? 0.5 : 1 }}
-              onClick={() => setTagFilter(tagFilter === t ? null : t)}>{t}</button>
-          ))}
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: showTags ? 8 : 0 }}>
+            <button className="btn btn-sm" onClick={() => setShowTags(!showTags)}
+              style={{ fontSize: 11, gap: 4 }}>
+              <Tag size={11} />
+              <ChevronDown size={11} style={{ transform: showTags ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+              Tags ({allTags.length})
+            </button>
+            {tagFilter && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span className="badge badge-identified" style={{ fontSize: 11 }}>{tagFilter}</span>
+                <button className="btn-icon" style={{ width: 18, height: 18 }} onClick={() => setTagFilter(null)}><X size={10} /></button>
+              </span>
+            )}
+          </div>
+          {showTags && (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              <button className={`badge ${!tagFilter ? 'badge-identified' : ''}`}
+                style={{ cursor: 'pointer', border: 'none' }}
+                onClick={() => setTagFilter(null)}>All</button>
+              {allTags.map(t => (
+                <button key={t} className={`badge ${tagFilter === t ? 'badge-identified' : ''}`}
+                  style={{ cursor: 'pointer', border: 'none', opacity: tagFilter && tagFilter !== t ? 0.5 : 1 }}
+                  onClick={() => setTagFilter(tagFilter === t ? null : t)}>{t}</button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
