@@ -1338,6 +1338,15 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
             {showArchived ? <Eye size={12} /> : <EyeOff size={12} />}
             {showArchived ? 'Showing all' : 'Hide archived'}
           </button>
+          <button className="btn btn-sm" style={{ color: 'var(--danger)' }}
+            onClick={async () => {
+              if (!confirm(`Delete all ${grants.length} grants? This cannot be undone.`)) return
+              await fetch('/api/grants', { method: 'DELETE' })
+              onSelectGrant(null)
+              fetchGrants()
+            }}>
+            <Trash2 size={12} /> Delete All
+          </button>
         </div>
       </div>
 

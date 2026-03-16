@@ -46,3 +46,14 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ error: String(error) }, { status: 500 })
   }
 }
+
+export async function DELETE(): Promise<Response> {
+  try {
+    await prisma.projectGrant.deleteMany({})
+    const result = await prisma.grant.deleteMany({})
+    return NextResponse.json({ deleted: result.count })
+  } catch (error) {
+    console.error('DELETE /api/grants error:', error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
+}
