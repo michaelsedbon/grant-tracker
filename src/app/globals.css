@@ -577,6 +577,7 @@ textarea.input {
 }
 
 .partner-card:hover { border-color: var(--border-light); }
+.partner-card.selected { border-color: var(--accent-blue); background: var(--bg-active); }
 
 .partner-name { font-weight: 600; font-size: 13px; }
 .partner-institution { font-size: 12px; color: var(--text-secondary); }

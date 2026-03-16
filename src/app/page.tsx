@@ -145,6 +145,7 @@ export default function GrantTracker() {
   const [projectData, setProjectData] = useState<Project | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [selectedGrant, setSelectedGrant] = useState<ProjectGrantLink | null>(null)
+  const [selectedPartner, setSelectedPartner] = useState<Partner | null>(null)
   const [showAddProject, setShowAddProject] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [loading, setLoading] = useState(true)
@@ -238,6 +239,7 @@ export default function GrantTracker() {
         if (contextMenu) setContextMenu(null)
         else if (showShortcuts) setShowShortcuts(false)
         else if (selectedGrant) setSelectedGrant(null)
+        else if (selectedPartner) setSelectedPartner(null)
       }
       // Cmd+N = add project
       if (mod && e.key === 'n') { e.preventDefault(); setShowAddProject(true) }
@@ -248,7 +250,7 @@ export default function GrantTracker() {
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [contextMenu, selectedGrant, showShortcuts])
+  }, [contextMenu, selectedGrant, selectedPartner, showShortcuts])
 
   // Context menu actions
   const handleContextMenu = (e: React.MouseEvent, pg: ProjectGrantLink) => {
@@ -398,7 +400,7 @@ export default function GrantTracker() {
               {projectData && activeTab === 'stateOfArt' && <MarkdownTab project={projectData} field="stateOfArt" label="State of the Art" onUpdate={updateProject} />}
               {projectData && activeTab === 'impact' && <MarkdownTab project={projectData} field="impact" label="Impact & Dissemination" onUpdate={updateProject} />}
               {projectData && activeTab === 'bibliography' && <BibliographyTab project={projectData} onRefresh={fetchProjectDetail} />}
-              {projectData && activeTab === 'partners' && <PartnersTab project={projectData} onRefresh={fetchProjectDetail} />}
+              {projectData && activeTab === 'partners' && <PartnersTab project={projectData} onRefresh={fetchProjectDetail} selectedPartner={selectedPartner} onSelectPartner={setSelectedPartner} />}
               {projectData && activeTab === 'budget' && <BudgetTab project={projectData} onRefresh={fetchProjectDetail} />}
               {projectData && activeTab === 'timeline' && <TimelineTab project={projectData} onRefresh={fetchProjectDetail} />}
               {projectData && activeTab === 'deliverables' && <DeliverablesTab project={projectData} onRefresh={fetchProjectDetail} />}
@@ -418,6 +420,19 @@ export default function GrantTracker() {
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
             <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Right Panel (Partner Detail) ── */}
+      {selectedPartner && !selectedGrant && (
+        <div className="right-panel">
+          <div className="panel-header">
+            <h2><Users size={16} /> {selectedPartner.name}</h2>
+            <button className="btn-icon" onClick={() => setSelectedPartner(null)}><X size={16} /></button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <PartnerDetailPanel partner={selectedPartner} onRefresh={() => { fetchProjectDetail(); }} onUpdate={(updated: Partner) => setSelectedPartner(updated)} />
           </div>
         </div>
       )}
@@ -784,7 +799,7 @@ function BibliographyTab({ project, onRefresh }: { project: Project; onRefresh: 
 }
 
 
-function PartnersTab({ project, onRefresh }: { project: Project; onRefresh: () => void }) {
+function PartnersTab({ project, onRefresh, selectedPartner, onSelectPartner }: { project: Project; onRefresh: () => void; selectedPartner: Partner | null; onSelectPartner: (p: Partner | null) => void }) {
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', institution: '', expertise: '', email: '', website: '', status: 'to_contact', notes: '' })
 
@@ -838,14 +853,16 @@ function PartnersTab({ project, onRefresh }: { project: Project; onRefresh: () =
         </div>
       )}
       {project.partners?.map(p => (
-        <div key={p.id} className="partner-card">
+        <div key={p.id} className={`partner-card ${selectedPartner?.id === p.id ? 'selected' : ''}`}
+          style={{ cursor: 'pointer' }}
+          onClick={() => onSelectPartner(p)}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>
               <div className="partner-name">{p.name}</div>
               <div className="partner-institution">{p.institution}</div>
               {p.expertise && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{p.expertise}</div>}
             </div>
-            <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
               <select className="select" value={p.status} style={{ fontSize: 11, padding: '2px 6px' }}
                 onChange={e => updatePartner(p.id, { status: e.target.value })}>
                 {PARTNER_STATUS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
@@ -854,12 +871,102 @@ function PartnersTab({ project, onRefresh }: { project: Project; onRefresh: () =
             </div>
           </div>
           <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 11 }}>
-            {p.email && <a href={`mailto:${p.email}`} className="detail-link">{p.email}</a>}
-            {p.website && <a href={p.website} target="_blank" className="detail-link"><ExternalLink size={10} /> website</a>}
+            {p.email && <a href={`mailto:${p.email}`} className="detail-link" onClick={e => e.stopPropagation()}>{p.email}</a>}
+            {p.website && <a href={p.website} target="_blank" className="detail-link" onClick={e => e.stopPropagation()}><ExternalLink size={10} /> website</a>}
           </div>
         </div>
       ))}
     </div>
+  )
+}
+
+/* ─── Partner Detail Panel ─────────────── */
+function PartnerDetailPanel({ partner, onRefresh, onUpdate }: { partner: Partner; onRefresh: () => void; onUpdate: (p: Partner) => void }) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState(partner)
+
+  useEffect(() => { setForm(partner); setEditing(false) }, [partner.id])
+
+  const save = async () => {
+    const res = await fetch(`/api/partners/${partner.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form)
+    })
+    const updated = await res.json()
+    onUpdate(updated)
+    onRefresh()
+    setEditing(false)
+  }
+
+  return (
+    <>
+      <div className="detail-section">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span className={`badge badge-${partner.status}`} style={{ textTransform: 'capitalize' }}>{partner.status.replace('_', ' ')}</span>
+          <button className="btn btn-sm" onClick={() => setEditing(!editing)}>
+            {editing ? <><X size={12} /> Cancel</> : <><Edit3 size={12} /> Edit</>}
+          </button>
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="detail-section">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="field-group"><label className="field-label">Name</label>
+              <input className="input" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+            </div>
+            <div className="field-group"><label className="field-label">Institution</label>
+              <input className="input" value={form.institution} onChange={e => setForm({ ...form, institution: e.target.value })} />
+            </div>
+            <div className="field-group"><label className="field-label">Expertise</label>
+              <textarea className="input" rows={3} value={form.expertise} onChange={e => setForm({ ...form, expertise: e.target.value })} />
+            </div>
+            <div className="field-group"><label className="field-label">Email</label>
+              <input className="input" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} />
+            </div>
+            <div className="field-group"><label className="field-label">Website</label>
+              <input className="input" type="url" value={form.website} onChange={e => setForm({ ...form, website: e.target.value })} />
+            </div>
+            <div className="field-group"><label className="field-label">Status</label>
+              <select className="select" value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
+                {PARTNER_STATUS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+              </select>
+            </div>
+            <div className="field-group"><label className="field-label">Notes</label>
+              <textarea className="input" rows={4} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={save}><Save size={12} /> Save</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="detail-section">
+            <div className="detail-label">Institution</div>
+            <div className="detail-value">{partner.institution || '—'}</div>
+          </div>
+
+          <div className="detail-section">
+            <div className="detail-label">Expertise</div>
+            <div className="detail-value" style={{ lineHeight: 1.6 }}>{partner.expertise || '—'}</div>
+          </div>
+
+          <div className="detail-section">
+            <div className="detail-label">Contact</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {partner.email ? <a href={`mailto:${partner.email}`} className="detail-link">{partner.email}</a> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>No email</span>}
+              {partner.website ? <a href={partner.website} target="_blank" className="detail-link"><ExternalLink size={12} /> {partner.website}</a> : <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>No website</span>}
+            </div>
+          </div>
+
+          {partner.notes && (
+            <div className="detail-section">
+              <div className="detail-label">Notes</div>
+              <div className="detail-value" style={{ lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{partner.notes}</div>
+            </div>
+          )}
+        </>
+      )}
+    </>
   )
 }
 
