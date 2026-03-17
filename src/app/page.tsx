@@ -6,7 +6,7 @@ import {
   Microscope, BookOpen, Users, FileText, BarChart3, Award, ChevronRight,
   X, ExternalLink, Star, Trash2, Edit3, Check, FolderOpenDot, Save,
   Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard, User,
-  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle, ChevronDown
+  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle, ChevronDown, Upload
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -594,8 +594,37 @@ export default function GrantTracker() {
 function OverviewTab({ project, onUpdate, onRefresh }: { project: Project; onUpdate: (f: string, v: string) => void; onRefresh: () => void }) {
   const [editing, setEditing] = useState(false)
   const [desc, setDesc] = useState(project.description)
+  const [docs, setDocs] = useState<{ name: string; size: number; modified: string; path: string }[]>([])
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setDesc(project.description) }, [project.description])
+
+  const fetchDocs = useCallback(() => {
+    fetch(`/api/project-docs?slug=${project.slug}`)
+      .then(r => r.json())
+      .then(data => setDocs(data.files || []))
+      .catch(() => {})
+  }, [project.slug])
+
+  useEffect(() => { fetchDocs() }, [fetchDocs])
+
+  const uploadFile = async (file: File) => {
+    setUploading(true)
+    const form = new FormData()
+    form.append('slug', project.slug)
+    form.append('file', file)
+    await fetch('/api/project-docs', { method: 'POST', body: form })
+    setUploading(false)
+    fetchDocs()
+  }
+
+  const deleteDoc = async (name: string) => {
+    await fetch(`/api/project-docs?slug=${project.slug}&name=${encodeURIComponent(name)}`, { method: 'DELETE' })
+    fetchDocs()
+  }
+
+  const fmtSize = (b: number) => b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${(b / 1e3).toFixed(0)} KB`
 
   const totalGrants = project.grantLinks?.length || 0
   const upcoming = project.grantLinks?.filter(g => g.grant.deadline && new Date(g.grant.deadline) > new Date()).length || 0
@@ -641,6 +670,65 @@ function OverviewTab({ project, onUpdate, onRefresh }: { project: Project; onUpd
           ) : (
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>No description yet. Click Edit to add one.</div>
           )
+        )}
+      </div>
+
+      {/* ─── Project Documents ── */}
+      <div className="section-card">
+        <div className="section-title" style={{ justifyContent: 'space-between' }}>
+          <span><FolderOpenDot size={14} /> Past Proposals &amp; Documentation</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload size={12} /> Upload
+            </button>
+            <button className="btn btn-sm" onClick={() => {
+              fetch('/api/open-finder', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: `project-docs/${project.slug}` })
+              })
+            }}>
+              <FolderOpenDot size={12} /> Open Folder
+            </button>
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          style={{ display: 'none' }}
+          onChange={e => {
+            if (e.target.files) Array.from(e.target.files).forEach(f => uploadFile(f))
+            e.target.value = ''
+          }}
+        />
+        {uploading && <p style={{ fontSize: 12, color: 'var(--accent-blue)' }}>Uploading…</p>}
+        {docs.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
+            {docs.map(d => (
+              <div key={d.name} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                borderRadius: 6, background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border)', fontSize: 12
+              }}>
+                <FileText size={14} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+                <a href={d.path} target="_blank" style={{ flex: 1, color: 'var(--text-primary)', textDecoration: 'none' }}>
+                  {d.name}
+                </a>
+                <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>{fmtSize(d.size)}</span>
+                <button
+                  onClick={() => deleteDoc(d.name)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }}
+                  title="Delete"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
+            No documents uploaded yet. Upload past proposals, documentation, presentations, etc.
+          </p>
         )}
       </div>
     </>
