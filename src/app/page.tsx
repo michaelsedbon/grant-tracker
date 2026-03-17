@@ -1754,6 +1754,16 @@ function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode }
   const [notesMeta, setNotesMeta] = useState<{ total: number; done: number } | null>(null)
   const [uploading, setUploading] = useState(false)
   const uploadRef = useRef<HTMLInputElement>(null)
+  const [docCtx, setDocCtx] = useState<{ x: number; y: number; path: string; docId: string } | null>(null)
+  const [tunnelOpen, setTunnelOpen] = useState(false)
+
+  // Dismiss context menu on click outside
+  useEffect(() => {
+    if (!docCtx) return
+    const dismiss = () => setDocCtx(null)
+    window.addEventListener('click', dismiss)
+    return () => window.removeEventListener('click', dismiss)
+  }, [docCtx])
 
   // Fetch note metadata (checkbox counts) for the badge
   useEffect(() => {
@@ -1856,30 +1866,110 @@ function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode }
           e.target.value = ''
         }} />
         {uploading && <p style={{ fontSize: 11, color: 'var(--accent-blue)', marginTop: 4 }}>Uploading…</p>}
-        {g.documents && g.documents.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
-            {g.documents.map(d => (
-              <div key={d.id} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
-                borderRadius: 6, background: 'rgba(255,255,255,0.02)',
-                border: '1px solid var(--border)', fontSize: 11, cursor: 'pointer'
-              }}>
-                <FileText size={11} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
-                <span style={{ flex: 1 }} onClick={() => {
-                  fetch('/api/open-finder', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ path: d.filePath })
-                  })
-                }}>{d.label || d.originalName}</span>
-                <button onClick={() => deleteDoc(d.id)}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }}
-                  title="Delete"><X size={10} /></button>
-              </div>
-            ))}
+
+        {/* Right-click context menu */}
+        {docCtx && (
+          <div style={{
+            position: 'fixed', top: docCtx.y, left: docCtx.x, zIndex: 9999,
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: 4, minWidth: 160, boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+          }} onClick={() => setDocCtx(null)}>
+            <button style={{
+              width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12,
+              background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer',
+              borderRadius: 4
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+            onClick={() => { navigator.clipboard.writeText(docCtx.path); setDocCtx(null) }}>
+              📋 Copy Path
+            </button>
+            <button style={{
+              width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12,
+              background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer',
+              borderRadius: 4
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+            onClick={() => {
+              fetch('/api/open-finder', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: docCtx.path })
+              })
+              setDocCtx(null)
+            }}>
+              📂 Open in Finder
+            </button>
+            <button style={{
+              width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12,
+              background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer',
+              borderRadius: 4
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+            onClick={() => { deleteDoc(docCtx.docId); setDocCtx(null) }}>
+              🗑 Delete
+            </button>
           </div>
-        ) : (
-          <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>No documents yet — click Upload to add PDFs, screenshots, etc.</p>
         )}
+
+        {(() => {
+          const docs = g.documents || []
+          const tunnelDocs = docs.filter(d => d.filePath?.includes('/agent-tunnel/'))
+          const regularDocs = docs.filter(d => !d.filePath?.includes('/agent-tunnel/'))
+
+          const renderDoc = (d: Document) => (
+            <div key={d.id} style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
+              borderRadius: 6, background: 'rgba(255,255,255,0.02)',
+              border: '1px solid var(--border)', fontSize: 11, cursor: 'pointer'
+            }}
+            onClick={() => {
+              fetch('/api/open-finder', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: d.filePath })
+              })
+            }}
+            onContextMenu={e => {
+              e.preventDefault()
+              setDocCtx({ x: e.clientX, y: e.clientY, path: d.filePath, docId: d.id })
+            }}>
+              <FileText size={11} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+              <span style={{ flex: 1 }}>{d.label || d.originalName}</span>
+            </div>
+          )
+
+          if (docs.length === 0) {
+            return <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>No documents yet — click Upload to add PDFs, screenshots, etc.</p>
+          }
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
+              {regularDocs.map(renderDoc)}
+              {tunnelDocs.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                  <button onClick={() => setTunnelOpen(o => !o)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                    background: 'rgba(99,102,241,0.05)', border: '1px solid rgba(99,102,241,0.15)',
+                    borderRadius: 6, padding: '5px 8px', fontSize: 11, cursor: 'pointer',
+                    color: 'rgb(129,140,248)', fontWeight: 600
+                  }}>
+                    <ChevronDown size={11} style={{
+                      transition: 'transform 150ms',
+                      transform: tunnelOpen ? 'rotate(0)' : 'rotate(-90deg)'
+                    }} />
+                    Agent Tunnel ({tunnelDocs.length})
+                  </button>
+                  {tunnelOpen && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 12, marginTop: 4 }}>
+                      {tunnelDocs.map(renderDoc)}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {/* ─── Notes & Checklist Toggle ── */}

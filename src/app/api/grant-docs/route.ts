@@ -34,7 +34,8 @@ export async function POST(req: NextRequest) {
 
   if (!grantId || !file) return NextResponse.json({ error: 'grantId and file required' }, { status: 400 })
 
-  const dir = grantDir(grantId)
+  // Uploads go into an 'agent-tunnel' subfolder
+  const dir = path.join(grantDir(grantId), 'agent-tunnel')
   if (!existsSync(dir)) await mkdir(dir, { recursive: true })
 
   const buffer = Buffer.from(await file.arrayBuffer())
