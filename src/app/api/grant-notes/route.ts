@@ -8,18 +8,20 @@ export const dynamic = 'force-dynamic'
 // Store notes alongside the app in grant-notes/
 const NOTES_DIR = path.join(process.cwd(), 'grant-notes')
 
-function notePath(grantId: string) {
+function notePath(grantId: string, type: string = 'checklist') {
   // Sanitise to prevent path traversal
   const safe = grantId.replace(/[^a-zA-Z0-9\-]/g, '')
-  return path.join(NOTES_DIR, `${safe}.md`)
+  const suffix = type === 'answers' ? '-answers' : ''
+  return path.join(NOTES_DIR, `${safe}${suffix}.md`)
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const grantId = searchParams.get('grantId')
+  const type = searchParams.get('type') || 'checklist'
   if (!grantId) return NextResponse.json({ error: 'grantId required' }, { status: 400 })
 
-  const fp = notePath(grantId)
+  const fp = notePath(grantId, type)
   if (!existsSync(fp)) {
     return NextResponse.json({ content: '', exists: false })
   }
@@ -30,6 +32,7 @@ export async function GET(req: Request) {
 export async function PUT(req: Request) {
   const { searchParams } = new URL(req.url)
   const grantId = searchParams.get('grantId')
+  const type = searchParams.get('type') || 'checklist'
   if (!grantId) return NextResponse.json({ error: 'grantId required' }, { status: 400 })
 
   const body = await req.json()
@@ -39,7 +42,7 @@ export async function PUT(req: Request) {
     await mkdir(NOTES_DIR, { recursive: true })
   }
 
-  const fp = notePath(grantId)
+  const fp = notePath(grantId, type)
   await writeFile(fp, content, 'utf-8')
   return NextResponse.json({ ok: true })
 }

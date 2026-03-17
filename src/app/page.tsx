@@ -155,7 +155,7 @@ export default function GrantTracker() {
   const [toast, setToast] = useState<string | null>(null)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [notesOpen, setNotesOpen] = useState(false)
+  const [notesPanelMode, setNotesPanelMode] = useState<'checklist' | 'answers' | null>(null)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Show toast notification
@@ -420,23 +420,23 @@ export default function GrantTracker() {
         <div className="right-panel">
           <div className="panel-header">
             <h2><Award size={16} /> {selectedGrant.grant.name}</h2>
-            <button className="btn-icon" onClick={() => { setSelectedGrant(null); setNotesOpen(false) }}><X size={16} /></button>
+            <button className="btn-icon" onClick={() => { setSelectedGrant(null); setNotesPanelMode(null) }}><X size={16} /></button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} onToggleNotes={() => setNotesOpen(o => !o)} notesOpen={notesOpen} />
+            <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} notesPanelMode={notesPanelMode} onSetNotesPanelMode={setNotesPanelMode} />
           </div>
         </div>
       )}
 
       {/* ─── Wide Notes Panel ── */}
-      {selectedGrant && notesOpen && (
+      {selectedGrant && notesPanelMode && (
         <div className="notes-panel">
           <div className="panel-header">
-            <h2><ClipboardList size={16} /> Notes &amp; Checklist</h2>
-            <button className="btn-icon" onClick={() => setNotesOpen(false)}><X size={16} /></button>
+            <h2>{notesPanelMode === 'checklist' ? <><ClipboardList size={16} /> Notes &amp; Checklist</> : <><FileText size={16} /> Application Answers</>}</h2>
+            <button className="btn-icon" onClick={() => setNotesPanelMode(null)}><X size={16} /></button>
           </div>
           <div className="notes-editor-area">
-            <GrantNotesEditor grantId={selectedGrant.grant.id} />
+            <GrantNotesEditor grantId={selectedGrant.grant.id} noteType={notesPanelMode} />
           </div>
         </div>
       )}
@@ -1659,7 +1659,7 @@ function MatchStars({ score, pgId, onRefresh }: { score: number; pgId: string; o
 }
 
 /* ─── Grant Detail Panel ───────────────── */
-function GrantNotesEditor({ grantId }: { grantId: string }) {
+function GrantNotesEditor({ grantId, noteType = 'checklist' }: { grantId: string; noteType?: 'checklist' | 'answers' }) {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1669,20 +1669,20 @@ function GrantNotesEditor({ grantId }: { grantId: string }) {
   useEffect(() => {
     setLoaded(false)
     setEditing(false)
-    fetch(`/api/grant-notes?grantId=${grantId}`)
+    fetch(`/api/grant-notes?grantId=${grantId}&type=${noteType}`)
       .then(r => r.json())
       .then(data => { setContent(data.content || ''); setLoaded(true) })
       .catch(() => setLoaded(true))
-  }, [grantId])
+  }, [grantId, noteType])
 
   const saveNotes = useCallback((text: string) => {
     setSaving(true)
-    fetch(`/api/grant-notes?grantId=${grantId}`, {
+    fetch(`/api/grant-notes?grantId=${grantId}&type=${noteType}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: text })
     }).then(() => setSaving(false)).catch(() => setSaving(false))
-  }, [grantId])
+  }, [grantId, noteType])
 
   const handleChange = useCallback((val: string | undefined) => {
     const v = val ?? ''
@@ -1745,9 +1745,15 @@ function GrantNotesEditor({ grantId }: { grantId: string }) {
   )
 }
 
-function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: ProjectGrantLink; onRefresh: () => void; onToggleNotes: () => void; notesOpen: boolean }) {
+function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode }: {
+  pg: ProjectGrantLink; onRefresh: () => void;
+  notesPanelMode: 'checklist' | 'answers' | null;
+  onSetNotesPanelMode: (m: 'checklist' | 'answers' | null) => void;
+}) {
   const g = pg.grant
   const [notesMeta, setNotesMeta] = useState<{ total: number; done: number } | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const uploadRef = useRef<HTMLInputElement>(null)
 
   // Fetch note metadata (checkbox counts) for the badge
   useEffect(() => {
@@ -1760,7 +1766,27 @@ function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: Pro
         setNotesMeta({ total, done })
       })
       .catch(() => {})
-  }, [g.id, notesOpen]) // re-fetch when notes panel closes (may have changed)
+  }, [g.id, notesPanelMode]) // re-fetch when notes panel closes (may have changed)
+
+  const uploadFile = async (file: File) => {
+    setUploading(true)
+    const form = new FormData()
+    form.append('grantId', g.id)
+    form.append('file', file)
+    form.append('label', file.name)
+    await fetch('/api/grant-docs', { method: 'POST', body: form })
+    setUploading(false)
+    // Refresh grant data to show new document
+    onRefresh()
+  }
+
+  const deleteDoc = async (docId: string) => {
+    await fetch(`/api/grant-docs?id=${docId}`, { method: 'DELETE' })
+    onRefresh()
+  }
+
+  const notesOpen = notesPanelMode === 'checklist'
+  const answersOpen = notesPanelMode === 'answers'
 
   return (
     <>
@@ -1768,45 +1794,31 @@ function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: Pro
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <span className={`badge badge-${pg.status}`} style={{ textTransform: 'capitalize' }}>{pg.status.replace('_', ' ')}</span>
           <span className={deadlineClass(g.deadline)} style={{ fontSize: 13, fontWeight: 600 }}>
-            {g.deadline ? `${daysUntil(g.deadline)} — ${formatDate(g.deadline)}` : 'No deadline'}
+            {formatDate(g.deadline)} <span style={{ fontSize: 10, opacity: 0.7 }}>{daysUntil(g.deadline)}</span>
           </span>
         </div>
-        {g.description && <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>{g.description}</p>}
+        <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{g.eligibility || g.description || 'No eligibility info.'}</p>
       </div>
 
-      <div className="detail-section">
-        <div className="detail-label">Key Info</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
-          <div><span style={{ color: 'var(--text-muted)' }}>Amount:</span> {g.amount || '—'}</div>
-          <div><span style={{ color: 'var(--text-muted)' }}>Duration:</span> {g.duration || '—'}</div>
-          <div><span style={{ color: 'var(--text-muted)' }}>Currency:</span> {g.currency}</div>
-          <div><span style={{ color: 'var(--text-muted)' }}>TRL:</span> {g.trlLevel || '—'}</div>
-        </div>
-      </div>
-
-      {g.eligibility && (
+      {/* Links */}
+      {(g.url || g.portalUrl || g.faqUrl) && (
         <div className="detail-section">
-          <div className="detail-label">Eligibility</div>
-          <div className="detail-value">{g.eligibility}</div>
+          <div className="detail-label">Links</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {g.url && <a href={g.url} target="_blank" style={{ fontSize: 12, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: 4 }}><ExternalLink size={11} /> Call Page</a>}
+            {g.portalUrl && <a href={g.portalUrl} target="_blank" style={{ fontSize: 12, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: 4 }}><ExternalLink size={11} /> Submission Portal</a>}
+            {g.faqUrl && <a href={g.faqUrl} target="_blank" style={{ fontSize: 12, color: 'var(--accent-blue)', display: 'flex', alignItems: 'center', gap: 4 }}><ExternalLink size={11} /> FAQ / Guide</a>}
+          </div>
         </div>
       )}
 
-      <div className="detail-section">
-        <div className="detail-label">Links</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {g.url && <a href={g.url} target="_blank" className="detail-link"><ExternalLink size={12} /> Call Page</a>}
-          {g.portalUrl && <a href={g.portalUrl} target="_blank" className="detail-link"><ExternalLink size={12} /> Submission Portal</a>}
-          {g.faqUrl && <a href={g.faqUrl} target="_blank" className="detail-link"><ExternalLink size={12} /> FAQ / Guide</a>}
-          {!g.url && !g.portalUrl && !g.faqUrl && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>No links added yet</span>}
-        </div>
-      </div>
-
+      {/* Tags */}
       {g.tags && (
         <div className="detail-section">
           <div className="detail-label">Tags</div>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-            {g.tags.split(',').map(t => (
-              <span key={t} className="badge badge-identified" style={{ fontSize: 10 }}>{t.trim()}</span>
+            {g.tags.split(',').map(t => t.trim()).filter(Boolean).map(t => (
+              <span key={t} className="badge" style={{ fontSize: 10 }}>{t}</span>
             ))}
           </div>
         </div>
@@ -1821,44 +1833,59 @@ function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: Pro
         </div>
       </div>
 
+      {/* ─── Documents + Upload ── */}
       <div className="detail-section">
-        <div className="detail-label">Documents ({g.documents?.length || 0})</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="detail-label" style={{ marginBottom: 0 }}>Documents ({g.documents?.length || 0})</div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className="btn btn-sm" onClick={() => uploadRef.current?.click()}>
+              <Upload size={11} /> Upload
+            </button>
+            <button className="btn btn-sm" onClick={() => {
+              const docPath = g.documents?.[0]?.filePath
+              const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/')) : ''
+              fetch('/api/open-finder', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: dir || '.' })
+              })
+            }}><FolderOpenDot size={11} /> Finder</button>
+          </div>
+        </div>
+        <input ref={uploadRef} type="file" multiple style={{ display: 'none' }} onChange={e => {
+          if (e.target.files) Array.from(e.target.files).forEach(f => uploadFile(f))
+          e.target.value = ''
+        }} />
+        {uploading && <p style={{ fontSize: 11, color: 'var(--accent-blue)', marginTop: 4 }}>Uploading…</p>}
         {g.documents && g.documents.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 8 }}>
             {g.documents.map(d => (
               <div key={d.id} style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px',
+                display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px',
                 borderRadius: 6, background: 'rgba(255,255,255,0.02)',
                 border: '1px solid var(--border)', fontSize: 11, cursor: 'pointer'
-              }}
-              onClick={() => {
-                fetch('/api/open-finder', {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ path: d.filePath })
-                })
               }}>
-                <FileText size={12} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
-                <span style={{ flex: 1 }}>{d.label || d.originalName}</span>
+                <FileText size={11} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+                <span style={{ flex: 1 }} onClick={() => {
+                  fetch('/api/open-finder', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: d.filePath })
+                  })
+                }}>{d.label || d.originalName}</span>
+                <button onClick={() => deleteDoc(d.id)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }}
+                  title="Delete"><X size={10} /></button>
               </div>
             ))}
           </div>
         ) : (
-          <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>No documents attached</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 6 }}>No documents yet — click Upload to add PDFs, screenshots, etc.</p>
         )}
-        <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => {
-          const docPath = g.documents?.[0]?.filePath
-          const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/')) : ''
-          fetch('/api/open-finder', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: dir || '.' })
-          })
-        }}><FolderOpenDot size={12} /> Open in Finder</button>
       </div>
 
       {/* ─── Notes & Checklist Toggle ── */}
       <div className="detail-section" style={{ borderTop: '1px solid var(--border)' }}>
         <button
-          onClick={onToggleNotes}
+          onClick={() => onSetNotesPanelMode(notesOpen ? null : 'checklist')}
           style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             background: notesOpen ? 'rgba(99,102,241,0.1)' : 'none',
@@ -1887,10 +1914,33 @@ function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: Pro
             transform: notesOpen ? 'rotate(180deg)' : 'rotate(0)'
           }} />
         </button>
+
+        <button
+          onClick={() => onSetNotesPanelMode(answersOpen ? null : 'answers')}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: answersOpen ? 'rgba(52,211,153,0.1)' : 'none',
+            border: answersOpen ? '1px solid rgba(52,211,153,0.3)' : '1px solid transparent',
+            borderRadius: 8, cursor: 'pointer', padding: '10px 12px', marginTop: 6,
+            color: answersOpen ? 'rgb(52,211,153)' : 'var(--text-primary)',
+            fontWeight: 600, fontSize: 13, transition: 'all 200ms'
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Edit3 size={15} />
+            Application Answers
+          </span>
+          <ChevronRight size={14} style={{
+            transition: 'transform 200ms',
+            transform: answersOpen ? 'rotate(180deg)' : 'rotate(0)'
+          }} />
+        </button>
       </div>
     </>
   )
 }
+
+
 
 /* ─── Applicant Profile View ────────── */
 interface ProfileData {
