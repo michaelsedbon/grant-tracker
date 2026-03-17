@@ -122,6 +122,27 @@ html, body {
   animation: slideIn 200ms ease;
 }
 
+.notes-panel {
+  width: 550px;
+  max-width: 50vw;
+  background: var(--bg-primary);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideIn 200ms ease;
+}
+
+.notes-panel .panel-header {
+  background: var(--bg-tertiary);
+}
+
+.notes-panel .notes-editor-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
 @keyframes slideIn {
   from { transform: translateX(100%); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }

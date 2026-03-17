@@ -155,6 +155,7 @@ export default function GrantTracker() {
   const [toast, setToast] = useState<string | null>(null)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Show toast notification
@@ -419,10 +420,23 @@ export default function GrantTracker() {
         <div className="right-panel">
           <div className="panel-header">
             <h2><Award size={16} /> {selectedGrant.grant.name}</h2>
-            <button className="btn-icon" onClick={() => setSelectedGrant(null)}><X size={16} /></button>
+            <button className="btn-icon" onClick={() => { setSelectedGrant(null); setNotesOpen(false) }}><X size={16} /></button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} />
+            <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} onToggleNotes={() => setNotesOpen(o => !o)} notesOpen={notesOpen} />
+          </div>
+        </div>
+      )}
+
+      {/* ─── Wide Notes Panel ── */}
+      {selectedGrant && notesOpen && (
+        <div className="notes-panel">
+          <div className="panel-header">
+            <h2><ClipboardList size={16} /> Notes &amp; Checklist</h2>
+            <button className="btn-icon" onClick={() => setNotesOpen(false)}><X size={16} /></button>
+          </div>
+          <div className="notes-editor-area">
+            <GrantNotesEditor grantId={selectedGrant.grant.id} />
           </div>
         </div>
       )}
@@ -1554,8 +1568,7 @@ function MatchStars({ score, pgId, onRefresh }: { score: number; pgId: string; o
 }
 
 /* ─── Grant Detail Panel ───────────────── */
-function GrantNotesPanel({ grantId }: { grantId: string }) {
-  const [open, setOpen] = useState(true)
+function GrantNotesEditor({ grantId }: { grantId: string }) {
   const [content, setContent] = useState('')
   const [loaded, setLoaded] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -1587,97 +1600,76 @@ function GrantNotesPanel({ grantId }: { grantId: string }) {
     saveTimer.current = setTimeout(() => saveNotes(v), 1500)
   }, [saveNotes])
 
-  // Count checked / total checkboxes
-  const totalChecks = (content.match(/- \[[ x\/]\]/g) || []).length
-  const doneChecks = (content.match(/- \[x\]/g) || []).length
+  if (!loaded) return <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>Loading…</p>
+
+  if (!content && !editing) {
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 0' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>No notes yet for this grant.</p>
+        <button className="btn btn-sm" onClick={() => setEditing(true)}>
+          <Edit3 size={12} /> Create Notes
+        </button>
+      </div>
+    )
+  }
+
+  if (editing) {
+    return (
+      <div data-color-mode="dark">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{saving ? 'Saving…' : 'Auto-saves as you type'}</span>
+          <button className="btn btn-sm" onClick={() => { saveNotes(content); setEditing(false) }}>
+            <Eye size={12} /> Preview
+          </button>
+        </div>
+        <MDEditor
+          value={content}
+          onChange={handleChange}
+          preview="edit"
+          height={700}
+          visibleDragbar={true}
+          style={{ background: 'transparent', borderRadius: 8 }}
+        />
+      </div>
+    )
+  }
 
   return (
-    <div className="detail-section" style={{ borderTop: '1px solid var(--border)' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
+    <div style={{ position: 'relative' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="btn btn-sm" onClick={() => setEditing(true)}>
+          <Edit3 size={12} /> Edit
+        </button>
+      </div>
+      <div
+        data-color-mode="dark"
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0',
-          color: 'var(--text-primary)', fontWeight: 600, fontSize: 13
+          fontSize: 13, lineHeight: 1.8, cursor: 'pointer'
         }}
+        onClick={() => setEditing(true)}
       >
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ClipboardList size={14} />
-          Notes &amp; Checklist
-          {totalChecks > 0 && (
-            <span style={{
-              fontSize: 10, padding: '1px 6px', borderRadius: 8,
-              background: doneChecks === totalChecks ? 'rgba(52,211,153,0.2)' : 'rgba(251,191,36,0.2)',
-              color: doneChecks === totalChecks ? '#34d399' : '#fbbf24',
-            }}>
-              {doneChecks}/{totalChecks}
-            </span>
-          )}
-        </span>
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          {saving && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Saving…</span>}
-          <ChevronDown size={14} style={{
-            transition: 'transform 200ms', transform: open ? 'rotate(0)' : 'rotate(-90deg)'
-          }} />
-        </span>
-      </button>
-
-      {open && loaded && (
-        <div style={{ marginTop: 8 }}>
-          {!content && !editing ? (
-            <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 8 }}>No notes yet for this grant.</p>
-              <button className="btn btn-sm" onClick={() => { setEditing(true) }}>
-                <Edit3 size={12} /> Create Notes
-              </button>
-            </div>
-          ) : editing ? (
-            <div data-color-mode="dark">
-              <MDEditor
-                value={content}
-                onChange={handleChange}
-                preview="edit"
-                height={400}
-                visibleDragbar={false}
-                style={{ background: 'transparent', borderRadius: 8 }}
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
-                <button className="btn btn-sm" onClick={() => { saveNotes(content); setEditing(false) }}>
-                  <Eye size={12} /> Preview
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ position: 'relative' }}>
-              <div
-                data-color-mode="dark"
-                style={{
-                  maxHeight: 500, overflowY: 'auto', fontSize: 12, lineHeight: 1.7,
-                  padding: '8px 12px', borderRadius: 8,
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setEditing(true)}
-              >
-                <MarkdownPreview source={content} style={{ background: 'transparent', color: 'var(--text-secondary)', fontSize: 12 }} />
-              </div>
-              <button
-                className="btn btn-sm"
-                style={{ position: 'absolute', top: 8, right: 8, opacity: 0.6 }}
-                onClick={() => setEditing(true)}
-              >
-                <Edit3 size={12} /> Edit
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+        <MarkdownPreview source={content} style={{ background: 'transparent', color: 'var(--text-secondary)', fontSize: 13 }} />
+      </div>
     </div>
   )
 }
 
-function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: () => void }) {
+function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: ProjectGrantLink; onRefresh: () => void; onToggleNotes: () => void; notesOpen: boolean }) {
   const g = pg.grant
+  const [notesMeta, setNotesMeta] = useState<{ total: number; done: number } | null>(null)
+
+  // Fetch note metadata (checkbox counts) for the badge
+  useEffect(() => {
+    fetch(`/api/grant-notes?grantId=${g.id}`)
+      .then(r => r.json())
+      .then(data => {
+        const c = data.content || ''
+        const total = (c.match(/- \[[ x\/]\]/g) || []).length
+        const done = (c.match(/- \[x\]/g) || []).length
+        setNotesMeta({ total, done })
+      })
+      .catch(() => {})
+  }, [g.id, notesOpen]) // re-fetch when notes panel closes (may have changed)
 
   return (
     <>
@@ -1759,8 +1751,39 @@ function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: 
         }}><FolderOpenDot size={12} /> Open in Finder</button>
       </div>
 
-      {/* ─── Notes & Checklist ── */}
-      <GrantNotesPanel grantId={g.id} />
+      {/* ─── Notes & Checklist Toggle ── */}
+      <div className="detail-section" style={{ borderTop: '1px solid var(--border)' }}>
+        <button
+          onClick={onToggleNotes}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            background: notesOpen ? 'rgba(99,102,241,0.1)' : 'none',
+            border: notesOpen ? '1px solid rgba(99,102,241,0.3)' : '1px solid transparent',
+            borderRadius: 8, cursor: 'pointer', padding: '10px 12px',
+            color: notesOpen ? 'rgb(129,140,248)' : 'var(--text-primary)',
+            fontWeight: 600, fontSize: 13, transition: 'all 200ms'
+          }}
+        >
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <ClipboardList size={15} />
+            Notes &amp; Checklist
+            {notesMeta && notesMeta.total > 0 && (
+              <span style={{
+                fontSize: 10, padding: '2px 8px', borderRadius: 10,
+                background: notesMeta.done === notesMeta.total ? 'rgba(52,211,153,0.2)' : 'rgba(251,191,36,0.15)',
+                color: notesMeta.done === notesMeta.total ? '#34d399' : '#fbbf24',
+                fontWeight: 700
+              }}>
+                {notesMeta.done}/{notesMeta.total}
+              </span>
+            )}
+          </span>
+          <ChevronRight size={14} style={{
+            transition: 'transform 200ms',
+            transform: notesOpen ? 'rotate(180deg)' : 'rotate(0)'
+          }} />
+        </button>
+      </div>
     </>
   )
 }
