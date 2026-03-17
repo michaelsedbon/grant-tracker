@@ -1554,6 +1554,128 @@ function MatchStars({ score, pgId, onRefresh }: { score: number; pgId: string; o
 }
 
 /* ─── Grant Detail Panel ───────────────── */
+function GrantNotesPanel({ grantId }: { grantId: string }) {
+  const [open, setOpen] = useState(true)
+  const [content, setContent] = useState('')
+  const [loaded, setLoaded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const saveTimer = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    setLoaded(false)
+    setEditing(false)
+    fetch(`/api/grant-notes?grantId=${grantId}`)
+      .then(r => r.json())
+      .then(data => { setContent(data.content || ''); setLoaded(true) })
+      .catch(() => setLoaded(true))
+  }, [grantId])
+
+  const saveNotes = useCallback((text: string) => {
+    setSaving(true)
+    fetch(`/api/grant-notes?grantId=${grantId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: text })
+    }).then(() => setSaving(false)).catch(() => setSaving(false))
+  }, [grantId])
+
+  const handleChange = useCallback((val: string | undefined) => {
+    const v = val ?? ''
+    setContent(v)
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => saveNotes(v), 1500)
+  }, [saveNotes])
+
+  // Count checked / total checkboxes
+  const totalChecks = (content.match(/- \[[ x\/]\]/g) || []).length
+  const doneChecks = (content.match(/- \[x\]/g) || []).length
+
+  return (
+    <div className="detail-section" style={{ borderTop: '1px solid var(--border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0',
+          color: 'var(--text-primary)', fontWeight: 600, fontSize: 13
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <ClipboardList size={14} />
+          Notes &amp; Checklist
+          {totalChecks > 0 && (
+            <span style={{
+              fontSize: 10, padding: '1px 6px', borderRadius: 8,
+              background: doneChecks === totalChecks ? 'rgba(52,211,153,0.2)' : 'rgba(251,191,36,0.2)',
+              color: doneChecks === totalChecks ? '#34d399' : '#fbbf24',
+            }}>
+              {doneChecks}/{totalChecks}
+            </span>
+          )}
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {saving && <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Saving…</span>}
+          <ChevronDown size={14} style={{
+            transition: 'transform 200ms', transform: open ? 'rotate(0)' : 'rotate(-90deg)'
+          }} />
+        </span>
+      </button>
+
+      {open && loaded && (
+        <div style={{ marginTop: 8 }}>
+          {!content && !editing ? (
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 8 }}>No notes yet for this grant.</p>
+              <button className="btn btn-sm" onClick={() => { setEditing(true) }}>
+                <Edit3 size={12} /> Create Notes
+              </button>
+            </div>
+          ) : editing ? (
+            <div data-color-mode="dark">
+              <MDEditor
+                value={content}
+                onChange={handleChange}
+                preview="edit"
+                height={400}
+                visibleDragbar={false}
+                style={{ background: 'transparent', borderRadius: 8 }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+                <button className="btn btn-sm" onClick={() => { saveNotes(content); setEditing(false) }}>
+                  <Eye size={12} /> Preview
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <div
+                data-color-mode="dark"
+                style={{
+                  maxHeight: 500, overflowY: 'auto', fontSize: 12, lineHeight: 1.7,
+                  padding: '8px 12px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)',
+                  cursor: 'pointer'
+                }}
+                onClick={() => setEditing(true)}
+              >
+                <MarkdownPreview source={content} style={{ background: 'transparent', color: 'var(--text-secondary)', fontSize: 12 }} />
+              </div>
+              <button
+                className="btn btn-sm"
+                style={{ position: 'absolute', top: 8, right: 8, opacity: 0.6 }}
+                onClick={() => setEditing(true)}
+              >
+                <Edit3 size={12} /> Edit
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: () => void }) {
   const g = pg.grant
 
@@ -1566,7 +1688,7 @@ function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: 
             {g.deadline ? `${daysUntil(g.deadline)} — ${formatDate(g.deadline)}` : 'No deadline'}
           </span>
         </div>
-        {g.description && <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{g.description}</p>}
+        {g.description && <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>{g.description}</p>}
       </div>
 
       <div className="detail-section">
@@ -1591,7 +1713,7 @@ function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {g.url && <a href={g.url} target="_blank" className="detail-link"><ExternalLink size={12} /> Call Page</a>}
           {g.portalUrl && <a href={g.portalUrl} target="_blank" className="detail-link"><ExternalLink size={12} /> Submission Portal</a>}
-          {g.faqUrl && <a href={g.faqUrl} target="_blank" className="detail-link"><ExternalLink size={12} /> FAQ</a>}
+          {g.faqUrl && <a href={g.faqUrl} target="_blank" className="detail-link"><ExternalLink size={12} /> FAQ / Guide</a>}
           {!g.url && !g.portalUrl && !g.faqUrl && <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>No links added yet</span>}
         </div>
       </div>
@@ -1636,6 +1758,9 @@ function GrantDetailPanel({ pg, onRefresh }: { pg: ProjectGrantLink; onRefresh: 
           })
         }}><FolderOpenDot size={12} /> Open in Finder</button>
       </div>
+
+      {/* ─── Notes & Checklist ── */}
+      <GrantNotesPanel grantId={g.id} />
     </>
   )
 }
