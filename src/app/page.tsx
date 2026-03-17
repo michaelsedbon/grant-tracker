@@ -1576,10 +1576,13 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
                 await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
                 fetchGrants()
               }
+              // Fetch full grant details (including documents)
+              const fullRes = await fetch(`/api/grants/${g.id}`)
+              const fullGrant = await fullRes.json()
               const pgLink: ProjectGrantLink = {
                 id: `all-${g.id}`, projectId: '', grantId: g.id,
                 status: 'identified', matchScore: 0, relevance: '', notes: '',
-                grant: { ...g, seen: true }
+                grant: { ...fullGrant, seen: true }
               }
               onSelectGrant(pgLink)
             }}>
@@ -1819,22 +1822,35 @@ function GrantDetailPanel({ pg, onRefresh, onToggleNotes, notesOpen }: { pg: Pro
       </div>
 
       <div className="detail-section">
-        <div className="detail-label">Documents</div>
+        <div className="detail-label">Documents ({g.documents?.length || 0})</div>
         {g.documents && g.documents.length > 0 ? (
-          g.documents.map(d => (
-            <div key={d.id} className="doc-item">
-              <FileText size={14} />
-              <span className="doc-name">{d.originalName}</span>
-              {d.label && <span className="doc-label">{d.label}</span>}
-            </div>
-          ))
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {g.documents.map(d => (
+              <div key={d.id} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px',
+                borderRadius: 6, background: 'rgba(255,255,255,0.02)',
+                border: '1px solid var(--border)', fontSize: 11, cursor: 'pointer'
+              }}
+              onClick={() => {
+                fetch('/api/open-finder', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ path: d.filePath })
+                })
+              }}>
+                <FileText size={12} style={{ flexShrink: 0, color: 'var(--text-muted)' }} />
+                <span style={{ flex: 1 }}>{d.label || d.originalName}</span>
+              </div>
+            ))}
+          </div>
         ) : (
           <p style={{ color: 'var(--text-muted)', fontSize: 12 }}>No documents attached</p>
         )}
         <button className="btn btn-sm" style={{ marginTop: 8 }} onClick={() => {
+          const docPath = g.documents?.[0]?.filePath
+          const dir = docPath ? docPath.substring(0, docPath.lastIndexOf('/')) : ''
           fetch('/api/open-finder', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: process.cwd ? process.cwd() : '.' })
+            body: JSON.stringify({ path: dir || '.' })
           })
         }}><FolderOpenDot size={12} /> Open in Finder</button>
       </div>
