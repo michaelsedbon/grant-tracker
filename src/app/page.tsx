@@ -1735,9 +1735,9 @@ function GrantNotesEditor({ grantId, noteType = 'checklist' }: { grantId: string
       <div
         data-color-mode="dark"
         style={{
-          fontSize: 13, lineHeight: 1.8, cursor: 'pointer'
+          fontSize: 13, lineHeight: 1.8, cursor: 'text'
         }}
-        onClick={() => setEditing(true)}
+        onDoubleClick={() => setEditing(true)}
       >
         <MarkdownPreview source={content} style={{ background: 'transparent', color: 'var(--text-secondary)', fontSize: 13 }} />
       </div>

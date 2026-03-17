@@ -15,7 +15,50 @@
 
 *(485 characters)*
 
-### 1.2 Describe your project in detail
+---
+
+### 🆕 1.2 Tell us about your project (max 2000 chars — Annex 1)
+
+> ⚠️ **NEW — needs your review.** This is different from the detailed description. Annex 1 asks for focus on *achieved results*, *target groups*, *concrete objectives*, and *transformative potential*.
+
+*Cryptographic Beings* is a bio-hybrid machine that stores digital data in living algae, proposing an alternative to silicon-based computation where data permanence depends on ecological stewardship. The project addresses the growing environmental and philosophical costs of digital infrastructure by embedding computation within a living organism's natural behaviour.
+
+**Target groups:** The project engages contemporary art audiences, academic researchers at the intersection of biology and computation, and educational audiences including children through planned workshop programmes.
+
+**Concrete objectives achieved:**
+- Built and exhibited a fully functional 30-tube read-write system using photosynthetic buoyancy as the switching mechanism
+- Exhibited at major international institutions and festivals, reaching diverse audiences across Europe and internationally
+- Published research in IEEE on bio-hybrid computing
+- Received A' Design Award (Gold, 2023), Bio Arts and Design Award, and Falling Walls recognition
+- Developed custom hardware (PCBs, sensor arrays, robotic arms) and a complete software stack for biological data storage
+
+**Transformative potential:** Cryptographic Beings demonstrates that computation does not require inert substrates. By binding data permanence to ecological health, it proposes a paradigm where technology and care are inseparable. The planned expansion to other living substrates (bacteria, plants, mycelium) opens a broader research programme on living data infrastructure.
+
+<!-- TODO: count characters, must be ≤2000 with spaces -->
+
+---
+
+### 🆕 1.3 Tell us the story behind your project (max 2000 chars — Annex 1)
+
+> ⚠️ **NEW — needs your review.** Annex 1 asks for: how the idea came about, who participated, main phases, tools/methods used.
+
+**How the idea came about:** The project emerged from a research question: what would computation look like if it depended on living organisms rather than silicon? During a Master's programme at CRI Paris (Centre de Recherches Interdisciplinaires), the observation that Marimo algae spheres naturally float when photosynthesising and sink in darkness suggested a biological mechanism for binary switching. This natural behaviour became the foundation for the entire system.
+
+**Main phases:**
+1. *Research & prototyping* — Testing photosynthetic buoyancy with single algae spheres, measuring transition times, documenting habituation effects across multiple experiments
+2. *Hardware development* — Designing and fabricating custom PCBs, stepper motor controllers, LED arrays, and sensor systems. Building the physical grid of transparent tubes with robotic arms
+3. *Software development* — Building the full control stack: embedded firmware, HTTP APIs, WebSocket real-time monitoring, and a web dashboard for orchestrating read-write operations
+4. *Exhibition & evaluation* — Presenting the completed system in gallery contexts, collecting audience feedback, documenting biological behaviour over extended periods
+
+**Tools and methods:** Custom electronic design (KiCad), embedded programming, 3D printing for mechanical components, web development for the control interface, biological experimentation documented through a structured experiment notebook.
+
+**How this approach contributed to the objectives:** Each phase was conducted as an open experiment, with results feeding directly into the next iteration. The tight coupling between biological observation and engineering response ensured the system works with the organisms' constraints rather than against them.
+
+<!-- TODO: count characters, must be ≤2000 with spaces -->
+
+---
+
+### 1.4 Describe your project in detail
 
 *Cryptographic Beings* is a technological proposal for a "living hard-drive" where digital information is stored in living vegetal media instead of silicon-based transistors. The project realises binary logic through photosynthetic buoyancy switching: each "living bit" is a Marimo algae sphere (*Aegagropila linnaei*). When illuminated, photosynthesis supersaturates the sphere with oxygen micro-bubbles, decreasing its density so the sphere rises and floats. In darkness the oxygen diffuses away and the sphere gradually sinks. These two states, High (1) and Low (0), enable binary storage.
 
@@ -73,13 +116,7 @@ The project was presented at CRI Paris (Centre de Recherches Interdisciplinaires
 
 **How does your project engage at multiple levels?**
 
-> **Alternative framing options** (choose or combine):
->
-> **Option A — "Scales of engagement":** The project operates simultaneously at the scale of the individual viewer (sensory, contemplative experience), the institution (commissioned exhibitions, research partnerships), and the broader research community (publications, conferences). Each scale reinforces the others.
->
-> **Option B — "From gallery to lab to classroom":** The project connects exhibition spaces where general audiences encounter the work, academic environments where it generates new research questions at the intersection of biology and computation, and educational settings where it becomes a tool for teaching sustainability and scientific thinking.
->
-> **Option C — "Horizontal and vertical":** Horizontally, the project engages across disciplines: art, biology, computer science, philosophy, and ecology. Vertically, it moves from local maker communities to international exhibitions and EU-level recognition through nominations such as the STARTS Prize.
+The project connects exhibition spaces where general audiences encounter the work, academic environments where it generates new research questions at the intersection of biology and computation, and educational settings where it becomes a tool for teaching sustainability and scientific thinking. Horizontally, it engages across disciplines: art, biology, computer science, philosophy, and ecology. Vertically, it moves from local maker communities to international exhibitions.
 
 The work has been exhibited in major international art institutions and festivals, engaging general audiences with questions about technology and ecology. It has been published in specialised journals including IEEE, and presented at academic conferences, contributing to ongoing research on bio-hybrid systems. Partnerships with university research labs, particularly in synthetic biology, ensure the scientific rigour of the biological aspects.
 
@@ -109,27 +146,45 @@ The machine also serves as a platform for exploring AI-biology co-adaptation. Wh
 
 ## Section 5: EU Competitiveness (5 points)
 
-**What is the financial approach?**
+### 🆕 Business Model (reworked per Annex 1)
 
-The project generates revenue through exhibition fees from major institutions and festivals, and has received recognition through the A' Design Award (Gold, 2023), the Bio Arts and Design Award, the Falling Walls programme, and nominations for the STARTS Prize and Lumens Prize.
+> ⚠️ **NEW — needs your review.** Annex 1 asks specifically: who financed, revenue now/future, costs, scalability potential, disruptive innovation potential.
 
-Looking ahead, the goal is to develop a financially sustainable research programme around the concept of storing data in living media, expanding from algae to other biological substrates including bacteria, plants, and mycelium networks. This will be pursued through research grants that support both the scientific development (optimising biological storage capacity, exploring new organisms) and the artistic programme (new exhibitions, educational workshops, publications). The combination of artistic exhibitions that generate public engagement and research outputs that contribute to the bio-computing field creates a dual funding model where cultural and scientific investment reinforce each other.
+**Who has financed the implementation?** The project has been self-financed through the artist's practice, supplemented by exhibition fees from commissioning institutions and festival invitations. Hardware development costs (electronics, 3D printing, biological materials) have been absorbed within the studio practice.
 
-The core materials are widely accessible (Marimo algae, standard electronic components, 3D-printed structures), keeping production costs low and making the technology replicable for educational and research contexts.
+**Current revenue:** The installation generates exhibition fees (typically €5,000–€15,000 per commission plus production costs). Award recognition (A' Design Award Gold 2023, Bio Arts and Design Award, Falling Walls) has strengthened the project's visibility and commercial positioning.
+
+**Future revenue potential:** The goal is to develop a financially sustainable research programme around storing data in living media, expanding from algae to bacteria, plants, and mycelium networks. This will be pursued through:
+- Research grants supporting scientific development and artistic programme
+- Exhibition commissions that generate public engagement
+- Educational workshop fees (frugal 3D-printed kits for schools and maker spaces)
+- Potential licensing of the bio-hybrid computing platform for research institutions
+
+**Costs:** Ongoing costs are modest: biological materials (Marimo algae ~€5/unit), electronic components (~€200 per tube unit), maintenance during exhibitions. The primary cost is the artist's time for development and exhibition preparation.
+
+**Disruptive potential:** The concept of living data storage challenges the fundamental assumption that computation requires inert substrates. As biological fabrication and synthetic biology mature, living storage could become a genuine alternative for specific applications where environmental sustainability is prioritised over speed.
 
 ---
 
-## Section 6: Replicability (5 points)
+## Section 6: Replicability & Scalability (5 points)
 
-**Can this be replicated in other contexts?**
+### 🆕 Scalability (reworked per Annex 1)
 
-The principles behind Cryptographic Beings are inherently scalable and adaptable. A single-tube demonstration version can be built for under €50, making it suitable for classroom settings. The full installation scales from small configurations to 30 or more tubes depending on exhibition space.
+> ⚠️ **NEW — needs your review.** Annex 1 asks: which elements are transferable, why it can serve as a model, skills/partnerships needed, local adaptations.
 
-The software stack is built on standard web frameworks and open protocols, making it adaptable to other organism-based sensing and actuation projects. The grid architecture is modular: tubes can be added or removed without redesigning the system.
+**Why this project can serve as a model:** Cryptographic Beings demonstrates a methodology for embedding computation in biological systems that is fundamentally organism-agnostic. The principles (observe a switchable biological behaviour → build sensing and actuation around it → create a read-write interface) can be applied to any organism displaying binary-like states.
 
-Beyond direct replication, the concept of using living organisms as computational substrates can be adapted to local contexts and local species. Any organism displaying a switchable behaviour, whether photosynthetic, chemotactic, or gravitropic, could potentially serve as a "living bit." The planned workshop programme is designed precisely to explore this potential with young audiences, using frugal, 3D-printed hardware to build simplified versions.
+**Most transferable elements:**
+- The conceptual framework (living vs inert data storage, care-based computing)
+- The modular hardware architecture (scalable tube grid, standard electronic components)
+- The software stack (web-based control, real-time monitoring, API-driven operation)
+- The workshop methodology (frugal 3D-printed kits for educational contexts)
 
-The full experiment logs, design files, and API documentation are available to collaborators and partner institutions.
+**Skills and partnerships:** Replication benefits from basic electronics and programming knowledge, though the planned workshop kits are designed to lower this barrier significantly. Partnerships with biology labs are valuable for deeper scientific investigation but not required for educational or artistic deployments.
+
+**Local adaptation:** The concept can be adapted to local organisms and cultural contexts. Any species displaying a switchable behaviour (photosynthetic, chemotactic, gravitropic) could serve as a "living bit." Local biological knowledge and ecological traditions can inform the choice of organism, creating culturally specific versions of the project.
+
+A single-tube demonstration version can be built for under €50, making it suitable for classroom settings. The full installation scales from small configurations to 30 or more tubes depending on exhibition space.
 
 ---
 
@@ -140,3 +195,16 @@ The full experiment logs, design files, and API documentation are available to c
 - [ ] Signed Privacy Statement
 - [ ] CV / portfolio
 - [ ] Letters of recommendation (if available)
+
+---
+
+## 🆕 Notes for tomorrow
+
+> The sections marked with 🆕 are **new scaffolds** added based on the Annex 1 guiding questions. They need your review and personal input:
+>
+> 1. **Section 1.2 "Tell us about your project"** — 2000 char max. Needs your voice on achieved results and real impact numbers.
+> 2. **Section 1.3 "Tell us the story behind"** — 2000 char max. Needs the personal origin story of the project, how you came to Marimo.
+> 3. **Section 5 "Business Model"** — Reworked to match Annex 1 specifics. Check the financing and revenue details.
+> 4. **Section 6 "Scalability"** — Reworked with transferability focus. Check if the skills/partnerships section is accurate.
+> 5. **Character counts** — All 2000-char sections need to be counted and trimmed.
+> 6. **Section 7 attachments** — Need actual files prepared (photos, documentation, privacy statement).
