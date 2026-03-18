@@ -48,7 +48,7 @@ interface Grant {
   eligibility: string; trlLevel: string; tags: string;
   notes: string; archived: boolean; seen: boolean; createdAt: string; updatedAt: string;
   documents?: Document[];
-  projectLinks?: { project: { id: string; name: string; color: string } }[];
+  projectLinks?: { id: string; status: string; project: { id: string; name: string; color: string } }[];
 }
 
 interface ContextMenuState {
@@ -386,7 +386,7 @@ export default function GrantTracker() {
               <button className="tab active"><Award size={14} /> All Grants</button>
             </div>
             <div className="tab-content">
-              <AllGrantsView selectedGrant={selectedGrant} onSelectGrant={setSelectedGrant} />
+              <AllGrantsView selectedGrant={selectedGrant} onSelectGrant={setSelectedGrant} projects={projects} />
             </div>
           </>
         ) : (
@@ -423,7 +423,7 @@ export default function GrantTracker() {
             <button className="btn-icon" onClick={() => { setSelectedGrant(null); setNotesPanelMode(null) }}><X size={16} /></button>
           </div>
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} notesPanelMode={notesPanelMode} onSetNotesPanelMode={setNotesPanelMode} />
+            <GrantDetailPanel pg={selectedGrant} onRefresh={() => { fetchProjectDetail() }} notesPanelMode={notesPanelMode} onSetNotesPanelMode={setNotesPanelMode} projects={projects} />
           </div>
         </div>
       )}
@@ -1473,12 +1473,22 @@ function GrantsTab({ project, onSelectGrant, selectedGrant, onRefresh, onContext
 }
 
 /* ─── All Grants View ──────────────────── */
-function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: ProjectGrantLink | null; onSelectGrant: (g: ProjectGrantLink | null) => void }) {
+function AllGrantsView({ selectedGrant, onSelectGrant, projects }: { selectedGrant: ProjectGrantLink | null; onSelectGrant: (g: ProjectGrantLink | null) => void; projects: Project[] }) {
   const [grants, setGrants] = useState<Grant[]>([])
   const [showArchived, setShowArchived] = useState(false)
   const [tagFilter, setTagFilter] = useState<string | null>(null)
   const [showTags, setShowTags] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [projectPicker, setProjectPicker] = useState<{ grantId: string; x: number; y: number } | null>(null)
+  const [statusPicker, setStatusPicker] = useState<{ linkId: string; grantId: string; x: number; y: number } | null>(null)
+
+  // Dismiss pickers on click outside
+  useEffect(() => {
+    if (!projectPicker && !statusPicker) return
+    const dismiss = () => { setProjectPicker(null); setStatusPicker(null) }
+    window.addEventListener('click', dismiss)
+    return () => window.removeEventListener('click', dismiss)
+  }, [projectPicker, statusPicker])
 
   const fetchGrants = useCallback(async () => {
     const params = new URLSearchParams()
@@ -1503,6 +1513,106 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
       body: JSON.stringify({ archived: !archived })
     })
     fetchGrants()
+  }
+
+  const addProjectToGrant = async (grantId: string, projectId: string) => {
+    await fetch('/api/project-grants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ grantId, projectId, status: 'identified' })
+    })
+    fetchGrants()
+  }
+
+  const removeProjectFromGrant = async (linkId: string) => {
+    await fetch(`/api/project-grants/${linkId}`, { method: 'DELETE' })
+    fetchGrants()
+  }
+
+  const updateLinkStatus = async (linkId: string, status: string) => {
+    await fetch(`/api/project-grants/${linkId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    })
+    fetchGrants()
+  }
+
+  const statusColors: Record<string, string> = {
+    identified: '#666',
+    considering: '#eab308',
+    'in-progress': '#6366f1',
+    submitted: '#22c55e',
+    rejected: '#ef4444',
+    awarded: '#06b6d4'
+  }
+  const statusLabels: Record<string, string> = {
+    identified: 'Identified',
+    considering: 'Considering',
+    'in-progress': 'In Progress',
+    submitted: 'Submitted',
+    rejected: 'Rejected',
+    awarded: 'Awarded'
+  }
+
+  // ── Resizable columns ──
+  const [colWidths, setColWidths] = useState([320, 180, 120, 100, 220, 80])
+  const resizing = useRef<{ col: number; startX: number; startW: number } | null>(null)
+  const gridTemplate = colWidths.map(w => `${w}px`).join(' ')
+
+  const onResizeStart = (colIndex: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    resizing.current = { col: colIndex, startX: e.clientX, startW: colWidths[colIndex] }
+
+    const onMove = (ev: MouseEvent) => {
+      if (!resizing.current) return
+      const delta = ev.clientX - resizing.current.startX
+      const newW = Math.max(60, resizing.current.startW + delta)
+      setColWidths(prev => {
+        const next = [...prev]
+        next[resizing.current!.col] = newW
+        return next
+      })
+    }
+
+    const onUp = () => {
+      resizing.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // ── Text selection guard: track mousedown position, skip click if user dragged ──
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
+  const onRowMouseDown = (e: React.MouseEvent) => {
+    mouseDownPos.current = { x: e.clientX, y: e.clientY }
+  }
+  const handleRowClick = async (g: Grant, e: React.MouseEvent) => {
+    // If mouse moved > 5px, user was selecting text → don't navigate
+    if (mouseDownPos.current) {
+      const dx = Math.abs(e.clientX - mouseDownPos.current.x)
+      const dy = Math.abs(e.clientY - mouseDownPos.current.y)
+      if (dx > 5 || dy > 5) return
+    }
+    // Also check if there's an active selection
+    const sel = window.getSelection()
+    if (sel && sel.toString().trim().length > 0) return
+    if (!g.seen) {
+      await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
+      fetchGrants()
+    }
+    const fullRes = await fetch(`/api/grants/${g.id}`)
+    const fullGrant = await fullRes.json()
+    const pgLink: ProjectGrantLink = {
+      id: `all-${g.id}`, projectId: '', grantId: g.id,
+      status: 'identified', matchScore: 0, relevance: '', notes: '',
+      grant: { ...fullGrant, seen: true }
+    }
+    onSelectGrant(pgLink)
   }
 
   // Collect all tags
@@ -1564,28 +1674,28 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
         </div>
       )}
 
-      <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-        <div className="grant-header" style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 80px' }}>
-          <span>Grant Name</span><span>Funder</span><span>Deadline</span><span>Amount</span><span>Projects</span><span></span>
+      <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', overflow: 'auto' }}>
+        <div className="grant-header" style={{ gridTemplateColumns: gridTemplate }}>
+          {['Grant Name', 'Funder', 'Deadline', 'Amount', 'Projects', ''].map((label, i) => (
+            <span key={i} style={{ position: 'relative', userSelect: 'none' }}>
+              {label}
+              {i < 5 && (
+                <span
+                  style={{
+                    position: 'absolute', right: -4, top: 0, bottom: 0, width: 8,
+                    cursor: 'col-resize', zIndex: 2
+                  }}
+                  onMouseDown={e => onResizeStart(i, e)}
+                />
+              )}
+            </span>
+          ))}
         </div>
         {grants.map(g => (
           <div key={g.id} className={`grant-row ${g.archived ? 'archived-row' : ''} ${!g.seen ? 'grant-new' : ''} ${selectedGrant?.grantId === g.id ? 'selected' : ''}`}
-            style={{ gridTemplateColumns: '2fr 1fr 120px 100px 1.5fr 80px' }}
-            onClick={async () => {
-              if (!g.seen) {
-                await fetch(`/api/grants/${g.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ seen: true }) })
-                fetchGrants()
-              }
-              // Fetch full grant details (including documents)
-              const fullRes = await fetch(`/api/grants/${g.id}`)
-              const fullGrant = await fullRes.json()
-              const pgLink: ProjectGrantLink = {
-                id: `all-${g.id}`, projectId: '', grantId: g.id,
-                status: 'identified', matchScore: 0, relevance: '', notes: '',
-                grant: { ...fullGrant, seen: true }
-              }
-              onSelectGrant(pgLink)
-            }}>
+            style={{ gridTemplateColumns: gridTemplate, userSelect: 'text' }}
+            onMouseDown={onRowMouseDown}
+            onClick={e => handleRowClick(g, e)}>
             <span style={{ fontWeight: 500, opacity: g.archived ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
               {g.name}
               {!g.seen && <span className="new-badge">NEW</span>}
@@ -1595,13 +1705,40 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
               {formatDate(g.deadline)} <span style={{ fontSize: 10, opacity: 0.7 }}>{daysUntil(g.deadline)}</span>
             </span>
             <span>{g.amount || '—'}</span>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', alignItems: 'center', position: 'relative' }} onClick={e => e.stopPropagation()}>
               {g.projectLinks?.map(pl => (
-                <span key={pl.project.id} className="badge" style={{
-                  background: `${pl.project.color}22`, color: pl.project.color, fontSize: 10
-                }}>{pl.project.name}</span>
+                <span key={pl.id} className="badge" style={{
+                  background: `${pl.project.color}22`, color: pl.project.color, fontSize: 10,
+                  display: 'flex', alignItems: 'center', gap: 4, cursor: 'default'
+                }}>
+                  <span
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: statusColors[pl.status] || '#666',
+                      flexShrink: 0, cursor: 'pointer'
+                    }}
+                    title={statusLabels[pl.status] || pl.status}
+                    onClick={e => { e.stopPropagation(); setStatusPicker({ linkId: pl.id, grantId: g.id, x: e.clientX, y: e.clientY }) }}
+                  />
+                  {pl.project.name}
+                  <span
+                    style={{
+                      marginLeft: 2, cursor: 'pointer', opacity: 0.4, fontSize: 10, lineHeight: 1
+                    }}
+                    onMouseOver={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseOut={e => (e.currentTarget.style.opacity = '0.4')}
+                    onClick={e => { e.stopPropagation(); removeProjectFromGrant(pl.id) }}
+                    title="Remove project"
+                  >✕</span>
+                </span>
               ))}
-              {(!g.projectLinks || g.projectLinks.length === 0) && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>—</span>}
+              <button style={{
+                width: 18, height: 18, borderRadius: '50%', border: '1px dashed var(--border)',
+                background: 'none', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+              }}
+              onClick={e => { e.stopPropagation(); setProjectPicker({ grantId: g.id, x: e.clientX, y: e.clientY }) }}
+              title="Assign project">+</button>
             </div>
             <div style={{ display: 'flex', gap: 4 }} onClick={e => e.stopPropagation()}>
               {!g.seen ? (
@@ -1633,6 +1770,64 @@ function AllGrantsView({ selectedGrant, onSelectGrant }: { selectedGrant: Projec
       {allTags.length > 0 && (
         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-muted)' }}>
           Tags: {allTags.join(', ')}
+        </div>
+      )}
+      {/* ─── Project Picker Popup ─── */}
+      {projectPicker && (
+        <div style={{
+          position: 'fixed', top: projectPicker.y, left: projectPicker.x, zIndex: 9999,
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: 4, minWidth: 180, maxHeight: 240, overflowY: 'auto',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+        }} onClick={e => e.stopPropagation()}>
+          <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            Assign Project
+          </div>
+          {(() => {
+            const assigned = new Set(grants.find(g => g.id === projectPicker.grantId)?.projectLinks?.map(pl => pl.project.id) || [])
+            const available = projects.filter(p => !assigned.has(p.id))
+            if (available.length === 0) return <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--text-muted)' }}>All projects assigned</div>
+            return available.map(p => (
+              <button key={p.id} style={{
+                width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12,
+                background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer',
+                borderRadius: 4, display: 'flex', alignItems: 'center', gap: 8
+              }}
+              onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+              onMouseOut={e => (e.currentTarget.style.background = 'none')}
+              onClick={() => { addProjectToGrant(projectPicker.grantId, p.id); setProjectPicker(null) }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
+                {p.name}
+              </button>
+            ))
+          })()}
+        </div>
+      )}
+
+      {/* ─── Status Picker Popup ─── */}
+      {statusPicker && (
+        <div style={{
+          position: 'fixed', top: statusPicker.y, left: statusPicker.x, zIndex: 9999,
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: 4, minWidth: 160,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+        }} onClick={e => e.stopPropagation()}>
+          <div style={{ padding: '4px 8px', fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            Status
+          </div>
+          {Object.entries(statusLabels).map(([key, label]) => (
+            <button key={key} style={{
+              width: '100%', textAlign: 'left', padding: '6px 12px', fontSize: 12,
+              background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer',
+              borderRadius: 4, display: 'flex', alignItems: 'center', gap: 8
+            }}
+            onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+            onMouseOut={e => (e.currentTarget.style.background = 'none')}
+            onClick={() => { updateLinkStatus(statusPicker.linkId, key); setStatusPicker(null) }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColors[key], flexShrink: 0 }} />
+              {label}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -1745,10 +1940,11 @@ function GrantNotesEditor({ grantId, noteType = 'checklist' }: { grantId: string
   )
 }
 
-function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode }: {
+function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode, projects }: {
   pg: ProjectGrantLink; onRefresh: () => void;
   notesPanelMode: 'checklist' | 'answers' | null;
   onSetNotesPanelMode: (m: 'checklist' | 'answers' | null) => void;
+  projects: Project[];
 }) {
   const g = pg.grant
   const [notesMeta, setNotesMeta] = useState<{ total: number; done: number } | null>(null)
@@ -1840,6 +2036,56 @@ function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode }
         <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Match:</span>
           <MatchStars score={pg.matchScore} pgId={pg.id} onRefresh={onRefresh} />
+        </div>
+      </div>
+
+      {/* ─── Projects assignment ── */}
+      <div className="detail-section">
+        <div className="detail-label">Projects</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          {g.projectLinks?.map(pl => (
+            <span key={pl.id} className="badge" style={{
+              background: `${pl.project.color}22`, color: pl.project.color, fontSize: 11,
+              display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px'
+            }}>
+              <span style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: { identified: '#666', considering: '#eab308', 'in-progress': '#6366f1', submitted: '#22c55e', rejected: '#ef4444', awarded: '#06b6d4' }[pl.status] || '#666',
+                flexShrink: 0
+              }} />
+              {pl.project.name}
+              <span
+                style={{ marginLeft: 2, cursor: 'pointer', opacity: 0.4, fontSize: 10 }}
+                onMouseOver={e => (e.currentTarget.style.opacity = '1')}
+                onMouseOut={e => (e.currentTarget.style.opacity = '0.4')}
+                onClick={async () => { await fetch(`/api/project-grants/${pl.id}`, { method: 'DELETE' }); onRefresh() }}
+                title="Remove project"
+              >✕</span>
+            </span>
+          ))}
+          {(!g.projectLinks || g.projectLinks.length === 0) && <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>No projects assigned</span>}
+          <select
+            style={{
+              background: 'var(--bg-primary)', border: '1px dashed var(--border)', borderRadius: 6,
+              color: 'var(--text-muted)', fontSize: 11, padding: '2px 6px', cursor: 'pointer'
+            }}
+            value=""
+            onChange={async e => {
+              if (!e.target.value) return
+              await fetch('/api/project-grants', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ grantId: g.id, projectId: e.target.value, status: 'identified' })
+              })
+              onRefresh()
+            }}
+          >
+            <option value="">+ Add project</option>
+            {projects
+              .filter(p => !g.projectLinks?.some(pl => pl.project.id === p.id))
+              .map(p => <option key={p.id} value={p.id}>{p.name}</option>)
+            }
+          </select>
         </div>
       </div>
 

@@ -11,11 +11,7 @@
 
 ### 1.1 Describe your project in a short and engaging way (500 chars max)
 
-> *Cryptographic Beings* is a bio-hybrid machine storing digital data in living algae. Marimo moss balls float or sink through photosynthesis, forming biological binary memory. Robotic arms control light to write; sensors read back. Each write consumes real metabolic resources, and data permanence depends on ecological care, not silicon. The work stages the tension between accelerationist extraction and symbiotic stewardship: will our data infrastructures cultivate life, or consume it?
-
-*(485 characters)*
-
----
+> *Cryptographic Beings* is a bio-hybrid machine storing digital data in living algae. Marimo moss balls flo
 
 ### 🆕 1.2 Tell us about your project (max 2000 chars — Annex 1)
 

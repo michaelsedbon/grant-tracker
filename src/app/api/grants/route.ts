@@ -24,7 +24,7 @@ export async function GET(req: Request): Promise<Response> {
       where,
       orderBy: { deadline: 'asc' },
       include: {
-        projectLinks: { include: { project: { select: { id: true, name: true, color: true } } } },
+        projectLinks: { select: { id: true, status: true, project: { select: { id: true, name: true, color: true } } } },
         _count: { select: { projectLinks: true, documents: true } }
       }
     })

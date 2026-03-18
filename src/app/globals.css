@@ -361,11 +361,10 @@ html, body {
 /* ── Grant table ──────────────── */
 .grant-row {
   display: grid;
-  grid-template-columns: 2fr 1fr 120px 100px 100px 80px;
   gap: 8px;
   padding: 10px 12px;
   font-size: 12px;
-  cursor: pointer;
+  cursor: default;
   border-bottom: 1px solid rgba(60,60,60,0.4);
   transition: background var(--transition);
   align-items: center;
@@ -396,7 +395,6 @@ html, body {
 
 .grant-header {
   display: grid;
-  grid-template-columns: 2fr 1fr 120px 100px 100px 80px;
   gap: 8px;
   padding: 8px 12px;
   font-size: 11px;
