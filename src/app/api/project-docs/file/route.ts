@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
     '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp', '.gif': 'image/gif',
+    '.mp4': 'video/mp4', '.webm': 'video/webm',
     '.txt': 'text/plain', '.md': 'text/markdown',
   }
 

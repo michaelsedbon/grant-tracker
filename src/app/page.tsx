@@ -6,7 +6,8 @@ import {
   Microscope, BookOpen, Users, FileText, BarChart3, Award, ChevronRight,
   X, ExternalLink, Star, Trash2, Edit3, Check, FolderOpenDot, Save,
   Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard, User,
-  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle, ChevronDown, Upload
+  GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle, ChevronDown, Upload,
+  Image, Film, Play, Newspaper, Link2, RefreshCw, HardDrive, Loader
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -109,6 +110,8 @@ const TABS = [
   { id: 'deliverables', label: 'Deliverables', icon: FileText },
   { id: 'impact', label: 'Impact', icon: BarChart3 },
   { id: 'relevance', label: 'Relevance', icon: Target },
+  { id: 'media', label: 'Media', icon: Image },
+  { id: 'press', label: 'Press', icon: Newspaper },
   { id: 'grants', label: 'Grants', icon: Award },
 ]
 
@@ -155,8 +158,35 @@ export default function GrantTracker() {
   const [toast, setToast] = useState<string | null>(null)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showBackup, setShowBackup] = useState(false)
   const [notesPanelMode, setNotesPanelMode] = useState<'checklist' | 'answers' | null>(null)
+  const [rightPanelW, setRightPanelW] = useState(420)
+  const [notesPanelW, setNotesPanelW] = useState(550)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const panelResizing = useRef<{ setter: (w: number) => void; startX: number; startW: number } | null>(null)
+
+  const startPanelResize = (setter: (w: number) => void, currentW: number, e: React.MouseEvent) => {
+    e.preventDefault()
+    panelResizing.current = { setter, startX: e.clientX, startW: currentW }
+    const onMove = (ev: MouseEvent) => {
+      if (!panelResizing.current) return
+      // Dragging left = increase width (panel is on the right)
+      const delta = panelResizing.current.startX - ev.clientX
+      const newW = Math.max(280, Math.min(window.innerWidth * 0.6, panelResizing.current.startW + delta))
+      panelResizing.current.setter(newW)
+    }
+    const onUp = () => {
+      panelResizing.current = null
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
 
   // Show toast notification
   const showToast = (msg: string) => {
@@ -366,6 +396,9 @@ export default function GrantTracker() {
           <button className="btn btn-sm" onClick={() => setShowHelp(true)} title="Help & Documentation">
             <HelpCircle size={14} />
           </button>
+          <button className="btn btn-sm" onClick={() => setShowBackup(true)} title="Backup">
+            <HardDrive size={14} />
+          </button>
         </div>
       </div>
 
@@ -409,6 +442,8 @@ export default function GrantTracker() {
               {projectData && activeTab === 'timeline' && <TimelineTab project={projectData} onRefresh={fetchProjectDetail} />}
               {projectData && activeTab === 'deliverables' && <DeliverablesTab project={projectData} onRefresh={fetchProjectDetail} />}
               {projectData && activeTab === 'relevance' && <RelevanceTab project={projectData} onRefresh={fetchProjectDetail} />}
+              {projectData && activeTab === 'media' && <MediaTab slug={projectData.slug} />}
+              {projectData && activeTab === 'press' && <PressTab slug={projectData.slug} />}
               {projectData && activeTab === 'grants' && <GrantsTab project={projectData} onSelectGrant={setSelectedGrant} selectedGrant={selectedGrant} onRefresh={fetchProjectDetail} onContextMenu={handleContextMenu} />}
             </div>
           </>
@@ -417,7 +452,11 @@ export default function GrantTracker() {
 
       {/* ─── Right Panel (Grant Detail) ── */}
       {selectedGrant && (
-        <div className="right-panel">
+        <div className="right-panel" style={{ width: rightPanelW }}>
+          <div
+            style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, cursor: 'col-resize', zIndex: 10 }}
+            onMouseDown={e => startPanelResize(setRightPanelW, rightPanelW, e)}
+          />
           <div className="panel-header">
             <h2><Award size={16} /> {selectedGrant.grant.name}</h2>
             <button className="btn-icon" onClick={() => { setSelectedGrant(null); setNotesPanelMode(null) }}><X size={16} /></button>
@@ -430,7 +469,11 @@ export default function GrantTracker() {
 
       {/* ─── Wide Notes Panel ── */}
       {selectedGrant && notesPanelMode && (
-        <div className="notes-panel">
+        <div className="notes-panel" style={{ width: notesPanelW }}>
+          <div
+            style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 6, cursor: 'col-resize', zIndex: 10 }}
+            onMouseDown={e => startPanelResize(setNotesPanelW, notesPanelW, e)}
+          />
           <div className="panel-header">
             <h2>{notesPanelMode === 'checklist' ? <><ClipboardList size={16} /> Notes &amp; Checklist</> : <><FileText size={16} /> Application Answers</>}</h2>
             <button className="btn-icon" onClick={() => setNotesPanelMode(null)}><X size={16} /></button>
@@ -586,6 +629,9 @@ export default function GrantTracker() {
           </div>
         </div>
       )}
+
+      {/* ─── Backup Modal ────────────────── */}
+      {showBackup && <BackupModal onClose={() => setShowBackup(false)} />}
     </div>
   )
 }
@@ -731,6 +777,768 @@ function OverviewTab({ project, onUpdate, onRefresh }: { project: Project; onUpd
           </p>
         )}
       </div>
+    </>
+  )
+}
+
+/* ─── Backup Modal ─────────────────────── */
+interface BackupInfo { filename: string; size: number; sizeFormatted: string; date: string; age: string }
+interface GitCommit { hash: string; shortHash: string; author: string; date: string; subject: string }
+interface GitData {
+  branch: string; localHead: string; remoteHead: string;
+  syncStatus: 'up_to_date' | 'behind' | 'ahead' | 'diverged' | 'unknown';
+  ahead: number; behind: number; modifiedFiles: number; remoteUrl: string;
+  commits: GitCommit[]; totalCommits: number
+}
+
+function BackupModal({ onClose }: { onClose: () => void }) {
+  const [backups, setBackups] = useState<BackupInfo[]>([])
+  const [stats, setStats] = useState<{ dbSize: string; docsSize: string; totalSize: string; backupCount: number; backupDir: string } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [activeTab, setActiveTab] = useState<'backups' | 'github'>('backups')
+  const [gitData, setGitData] = useState<GitData | null>(null)
+  const [gitLoading, setGitLoading] = useState(false)
+
+  const fetchBackups = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/backups')
+      const data = await res.json()
+      setBackups(data.backups || [])
+      setStats({ dbSize: data.dbSize, docsSize: data.docsSize, totalSize: data.totalSize, backupCount: data.backupCount, backupDir: data.backupDir || '' })
+    } catch { /* ignore */ }
+    setLoading(false)
+  }, [])
+
+  const fetchGit = useCallback(async () => {
+    setGitLoading(true)
+    try {
+      const res = await fetch('/api/git')
+      if (res.ok) setGitData(await res.json())
+    } catch { /* ignore */ }
+    setGitLoading(false)
+  }, [])
+
+  useEffect(() => { fetchBackups() }, [fetchBackups])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const createBackup = async () => {
+    setCreating(true)
+    try {
+      const res = await fetch('/api/backups', { method: 'POST' })
+      const data = await res.json()
+      if (data.error) alert(data.error)
+      else await fetchBackups()
+    } catch { alert('Backup failed') }
+    setCreating(false)
+  }
+
+  const deleteBackup = async (filename: string) => {
+    if (!confirm(`Delete backup ${filename}?`)) return
+    await fetch(`/api/backups?filename=${encodeURIComponent(filename)}`, { method: 'DELETE' })
+    fetchBackups()
+  }
+
+  const deleteAll = async () => {
+    if (!confirm(`Delete ALL ${backups.length} backups? This cannot be undone.`)) return
+    for (const b of backups) {
+      await fetch(`/api/backups?filename=${encodeURIComponent(b.filename)}`, { method: 'DELETE' })
+    }
+    fetchBackups()
+  }
+
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
+  // Commit chart (last 14 days)
+  const renderCommitChart = () => {
+    if (!gitData) return null
+    const days = 14
+    const now = new Date()
+    const buckets = Array.from({ length: days }, (_, i) => {
+      const d = new Date(now); d.setDate(d.getDate() - (days - 1 - i))
+      return { date: d.toISOString().slice(0, 10), count: 0, label: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) }
+    })
+    for (const c of gitData.commits) {
+      const key = c.date.slice(0, 10)
+      const b = buckets.find(bk => bk.date === key)
+      if (b) b.count++
+    }
+    const maxCount = Math.max(...buckets.map(b => b.count), 1)
+    return (
+      <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Commit frequency (last 14 days)</div>
+        <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 48 }}>
+          {buckets.map(b => (
+            <div key={b.date} title={`${b.label}: ${b.count} commits`} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+              <div style={{
+                width: '100%', borderRadius: 2, minHeight: 2,
+                height: `${(b.count / maxCount) * 100}%`,
+                background: b.count > 0 ? 'var(--accent-blue)' : 'rgba(255,255,255,0.05)'
+              }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: 3, marginTop: 2 }}>
+          {buckets.map((b, i) => (
+            <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 8, color: 'var(--text-muted)' }}>
+              {i % 2 === 0 ? b.label.split(' ')[0] : ''}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="media-lightbox" onClick={onClose} style={{ zIndex: 10000 }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 12,
+        width: 660, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden'
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <HardDrive size={16} /> Backup & Version Control
+          </h3>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-sm" onClick={() => { fetchBackups(); if (gitData) fetchGit() }} disabled={loading}>
+              <RefreshCw size={12} className={loading || gitLoading ? 'spin' : ''} />
+            </button>
+            <button className="btn btn-sm" onClick={onClose}><X size={14} /></button>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', padding: '0 18px' }}>
+          <button onClick={() => setActiveTab('backups')} style={{
+            padding: '8px 16px', fontSize: 12, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer',
+            color: activeTab === 'backups' ? 'var(--text-primary)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'backups' ? '2px solid var(--accent-blue)' : '2px solid transparent'
+          }}>
+            <HardDrive size={12} style={{ marginRight: 4, verticalAlign: -2 }} /> Backups
+          </button>
+          <button onClick={() => { setActiveTab('github'); if (!gitData && !gitLoading) fetchGit() }} style={{
+            padding: '8px 16px', fontSize: 12, fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer',
+            color: activeTab === 'github' ? 'var(--text-primary)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'github' ? '2px solid var(--accent-blue)' : '2px solid transparent'
+          }}>
+            <ExternalLink size={12} style={{ marginRight: 4, verticalAlign: -2 }} /> GitHub
+          </button>
+        </div>
+
+        {activeTab === 'backups' ? (
+          <>
+            {/* Stats */}
+            {stats && (
+              <div style={{ display: 'flex', gap: 12, padding: '10px 18px', borderBottom: '1px solid var(--border)', fontSize: 11, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                <span>DB: <strong style={{ color: 'var(--text-primary)' }}>{stats.dbSize}</strong></span>
+                <span>Docs: <strong style={{ color: 'var(--text-primary)' }}>{stats.docsSize}</strong></span>
+                <span>Backups: <strong style={{ color: 'var(--text-primary)' }}>{stats.totalSize}</strong> ({stats.backupCount})</span>
+                <div style={{ flex: 1 }} />
+                {backups.length > 0 && (
+                  <button style={{ background: 'none', border: 'none', color: 'var(--accent-red)', cursor: 'pointer', fontSize: 11 }} onClick={deleteAll}>
+                    Delete All
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Backup path */}
+            {stats?.backupDir && (
+              <div style={{ padding: '6px 18px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontFamily: 'monospace' }}>
+                📂 {stats.backupDir}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)' }}>
+              <button className="btn btn-primary btn-sm" onClick={createBackup} disabled={creating} style={{ width: '100%' }}>
+                {creating ? <><Loader size={12} className="spin" /> Creating backup…</> : <><HardDrive size={12} /> Backup Now</>}
+              </button>
+              <p style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Creates a tar.gz of database + all project documents & media</p>
+            </div>
+
+            {/* List */}
+            <div style={{ flex: 1, overflow: 'auto', padding: '8px 18px' }}>
+              {loading && backups.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)' }}><Loader size={20} className="spin" /></div>
+              ) : backups.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: 12 }}>
+                  <HardDrive size={24} style={{ opacity: 0.3, marginBottom: 8 }} />
+                  <p>No backups yet</p>
+                </div>
+              ) : (
+                backups.map((b, i) => (
+                  <div key={b.filename} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0',
+                    borderBottom: i < backups.length - 1 ? '1px solid var(--border)' : 'none', fontSize: 12
+                  }}>
+                    <Archive size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{b.filename}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                        <span>{fmtDate(b.date)}</span>
+                        <span>{b.age}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{b.sizeFormatted}</span>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }}
+                      onClick={() => deleteBackup(b.filename)} title="Delete">
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        ) : (
+          /* GitHub Tab */
+          <div style={{ flex: 1, overflow: 'auto' }}>
+            {gitLoading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}><Loader size={20} className="spin" /><p style={{ marginTop: 8, fontSize: 12 }}>Loading git data…</p></div>
+            ) : !gitData ? (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>Failed to load git data</div>
+            ) : (
+              <>
+                {/* Status bar */}
+                <div style={{ display: 'flex', gap: 16, padding: '12px 18px', borderBottom: '1px solid var(--border)', fontSize: 11, flexWrap: 'wrap' }}>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Branch</span> <strong>{gitData.branch}</strong></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Local</span> <code style={{ fontSize: 10, background: 'var(--bg-tertiary)', padding: '1px 4px', borderRadius: 3 }}>{gitData.localHead}</code></div>
+                  <div><span style={{ color: 'var(--text-muted)' }}>Remote</span> <code style={{ fontSize: 10, background: 'var(--bg-tertiary)', padding: '1px 4px', borderRadius: 3 }}>{gitData.remoteHead || '—'}</code></div>
+                  <div>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600,
+                      background: gitData.syncStatus === 'up_to_date' ? 'rgba(76,175,80,0.15)' : gitData.syncStatus === 'behind' ? 'rgba(244,67,54,0.15)' : gitData.syncStatus === 'ahead' ? 'rgba(33,150,243,0.15)' : 'rgba(255,152,0,0.15)',
+                      color: gitData.syncStatus === 'up_to_date' ? '#4caf50' : gitData.syncStatus === 'behind' ? '#f44336' : gitData.syncStatus === 'ahead' ? '#2196f3' : '#ff9800'
+                    }}>
+                      {gitData.syncStatus === 'up_to_date' ? '✓ Up to date' :
+                       gitData.syncStatus === 'behind' ? `↓ ${gitData.behind} behind` :
+                       gitData.syncStatus === 'ahead' ? `↑ ${gitData.ahead} ahead` :
+                       gitData.syncStatus === 'diverged' ? `↑${gitData.ahead} ↓${gitData.behind} diverged` : '? Unknown'}
+                    </span>
+                  </div>
+                  {gitData.modifiedFiles > 0 && (
+                    <div><span style={{ color: '#f59e0b' }}>{gitData.modifiedFiles} modified files</span></div>
+                  )}
+                </div>
+
+                {/* Remote URL */}
+                {gitData.remoteUrl && (
+                  <div style={{ padding: '6px 18px', fontSize: 10, color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', fontFamily: 'monospace' }}>
+                    🔗 {gitData.remoteUrl}
+                  </div>
+                )}
+
+                {/* Chart */}
+                {renderCommitChart()}
+
+                {/* Commits */}
+                <div style={{ padding: '8px 18px' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6 }}>Recent commits ({gitData.totalCommits})</div>
+                  {gitData.commits.slice(0, 20).map(c => (
+                    <div key={c.hash} style={{
+                      display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0',
+                      borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: 11
+                    }}>
+                      <code style={{ fontSize: 10, color: 'var(--accent-blue)', flexShrink: 0, background: 'var(--bg-tertiary)', padding: '1px 4px', borderRadius: 3 }}>{c.shortHash}</code>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.subject}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 10, flexShrink: 0 }}>{new Date(c.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+/* ─── Tab: Media ───────────────────────── */
+interface MediaFile { name: string; size: number; modified: string; type: 'image' | 'video' | 'document'; url: string }
+interface MediaLink { id: string; url: string; title: string; type: string; addedAt: string }
+interface MediaCredit { id: string; name: string; role: string; url: string }
+
+function MediaTab({ slug }: { slug: string }) {
+  const [files, setFiles] = useState<MediaFile[]>([])
+  const [links, setLinks] = useState<MediaLink[]>([])
+  const [credits, setCredits] = useState<MediaCredit[]>([])
+  const [filter, setFilter] = useState<'all' | 'images' | 'videos' | 'documents' | 'links'>('all')
+  const [uploading, setUploading] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [lightbox, setLightbox] = useState<{ src: string; type: 'image' | 'video' } | null>(null)
+  const [showAddLink, setShowAddLink] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
+  const [linkTitle, setLinkTitle] = useState('')
+  const [linkType, setLinkType] = useState('video')
+  const [showAddCredit, setShowAddCredit] = useState(false)
+  const [creditName, setCreditName] = useState('')
+  const [creditRole, setCreditRole] = useState('')
+  const [creditUrl, setCreditUrl] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const fetchData = useCallback(() => {
+    fetch(`/api/project-media?slug=${slug}`)
+      .then(r => r.json())
+      .then(data => {
+        setFiles(data.files || [])
+        setLinks(data.links || [])
+        setCredits(data.credits || [])
+      })
+      .catch(() => {})
+  }, [slug])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // ESC to close lightbox
+  useEffect(() => {
+    if (!lightbox) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(null) }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [lightbox])
+
+  const uploadFile = async (file: File) => {
+    setUploading(true)
+    const form = new FormData()
+    form.append('slug', slug)
+    form.append('file', file)
+    await fetch('/api/project-media', { method: 'POST', body: form })
+    setUploading(false)
+    fetchData()
+  }
+
+  const deleteFile = async (name: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await fetch(`/api/project-media?slug=${slug}&name=${encodeURIComponent(name)}`, { method: 'DELETE' })
+    fetchData()
+  }
+
+  const addLink = async () => {
+    if (!linkUrl.trim()) return
+    await fetch('/api/project-media?action=add-link', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, url: linkUrl, title: linkTitle || linkUrl, type: linkType })
+    })
+    setLinkUrl(''); setLinkTitle(''); setShowAddLink(false)
+    fetchData()
+  }
+
+  const deleteLink = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    await fetch(`/api/project-media?slug=${slug}&action=delete-link&id=${id}`, { method: 'DELETE' })
+    fetchData()
+  }
+
+  const addCredit = async () => {
+    if (!creditName.trim()) return
+    await fetch('/api/project-media?action=add-credit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, name: creditName, role: creditRole, url: creditUrl })
+    })
+    setCreditName(''); setCreditRole(''); setCreditUrl(''); setShowAddCredit(false)
+    fetchData()
+  }
+
+  const deleteCredit = async (id: string) => {
+    await fetch(`/api/project-media?slug=${slug}&action=delete-credit&id=${id}`, { method: 'DELETE' })
+    fetchData()
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    if (e.dataTransfer.files) {
+      Array.from(e.dataTransfer.files).forEach(f => uploadFile(f))
+    }
+  }
+
+  const showInFinder = (name: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    fetch('/api/open-finder', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: `project-docs/${slug}/media/${name}` })
+    })
+  }
+
+  const fmtSize = (b: number) => b > 1e6 ? `${(b / 1e6).toFixed(1)} MB` : `${(b / 1e3).toFixed(0)} KB`
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+
+  const filtered = filter === 'links' ? [] : files.filter(f => {
+    if (filter === 'images') return f.type === 'image'
+    if (filter === 'videos') return f.type === 'video'
+    if (filter === 'documents') return f.type === 'document'
+    return true
+  })
+  const showLinks = filter === 'all' || filter === 'links'
+
+  const counts = { all: files.length + links.length, images: files.filter(f => f.type === 'image').length, videos: files.filter(f => f.type === 'video').length, documents: files.filter(f => f.type === 'document').length, links: links.length }
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Image size={16} /> Media Gallery
+        </h3>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-sm" onClick={() => setShowAddLink(true)}>
+            <Link2 size={12} /> Add Link
+          </button>
+          <button className="btn btn-sm" onClick={() => fileInputRef.current?.click()}>
+            <Upload size={12} /> Upload
+          </button>
+          <button className="btn btn-sm" onClick={() => {
+            fetch('/api/open-finder', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: `project-docs/${slug}/media` })
+            })
+          }}>
+            <FolderOpenDot size={12} /> Open Folder
+          </button>
+        </div>
+      </div>
+
+      {/* Add Link inline form */}
+      {showAddLink && (
+        <div className="section-card" style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div style={{ flex: 2, minWidth: 200 }}>
+              <label className="field-label">URL</label>
+              <input className="input" placeholder="https://youtube.com/watch?v=..." value={linkUrl} onChange={e => setLinkUrl(e.target.value)} autoFocus />
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <label className="field-label">Title</label>
+              <input className="input" placeholder="Video title" value={linkTitle} onChange={e => setLinkTitle(e.target.value)} />
+            </div>
+            <div style={{ minWidth: 100 }}>
+              <label className="field-label">Type</label>
+              <select className="select" value={linkType} onChange={e => setLinkType(e.target.value)} style={{ width: '100%' }}>
+                <option value="video">Video</option>
+                <option value="article">Article</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={addLink}><Check size={12} /> Add</button>
+            <button className="btn btn-sm" onClick={() => setShowAddLink(false)}><X size={12} /></button>
+          </div>
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,.pdf"
+        style={{ display: 'none' }}
+        onChange={e => {
+          if (e.target.files) Array.from(e.target.files).forEach(f => uploadFile(f))
+          e.target.value = ''
+        }}
+      />
+
+      <div className="media-filter-bar">
+        {(['all', 'images', 'videos', 'documents', 'links'] as const).map(f => (
+          <button key={f} className={`media-filter-btn ${filter === f ? 'active' : ''}`} onClick={() => setFilter(f)}>
+            {f === 'all' && <Image size={11} />}
+            {f === 'images' && <Image size={11} />}
+            {f === 'videos' && <Film size={11} />}
+            {f === 'documents' && <FileText size={11} />}
+            {f === 'links' && <Link2 size={11} />}
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+            <span style={{ opacity: 0.6 }}>{counts[f]}</span>
+          </button>
+        ))}
+      </div>
+
+      {uploading && <p style={{ fontSize: 12, color: 'var(--accent-blue)', marginBottom: 8 }}>Uploading…</p>}
+
+      <div
+        className={`media-dropzone ${dragOver ? 'drag-over' : ''}`}
+        onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
+        <div className="media-grid">
+          {filtered.length === 0 && !showLinks && (
+            <div className="media-empty">
+              <Image size={40} />
+              <p style={{ fontSize: 13 }}>{files.length === 0 ? 'No media yet' : 'No matching files'}</p>
+              <p style={{ fontSize: 11, marginTop: 4 }}>Drag & drop files here or click Upload</p>
+            </div>
+          )}
+          {filtered.length === 0 && showLinks && links.length === 0 && (
+            <div className="media-empty">
+              <Image size={40} />
+              <p style={{ fontSize: 13 }}>No media yet</p>
+              <p style={{ fontSize: 11, marginTop: 4 }}>Drag & drop files, click Upload, or Add Link</p>
+            </div>
+          )}
+          {filtered.map(f => (
+            <div key={f.name} className="media-card" onClick={() => {
+              if (f.type === 'image') setLightbox({ src: f.url, type: 'image' })
+              else if (f.type === 'video') setLightbox({ src: f.url, type: 'video' })
+              else window.open(f.url, '_blank')
+            }}>
+              <button className="media-delete" onClick={e => deleteFile(f.name, e)} title="Delete">
+                <X size={12} />
+              </button>
+              <button className="media-delete" style={{ right: 34 }} onClick={e => showInFinder(f.name, e)} title="Show in Finder">
+                <FolderOpenDot size={12} />
+              </button>
+              <div className="media-thumb">
+                {f.type === 'image' && <img src={f.url} alt={f.name} loading="lazy" />}
+                {f.type === 'video' && (
+                  <>
+                    <video src={f.url} preload="metadata" muted />
+                    <div className="media-video-overlay"><Play size={32} /></div>
+                  </>
+                )}
+                {f.type === 'document' && (
+                  <div className="media-doc-icon">
+                    <FileText size={32} />
+                    <span style={{ fontSize: 10 }}>PDF</span>
+                  </div>
+                )}
+              </div>
+              <div className="media-info">
+                <div className="media-name" title={f.name}>{f.name}</div>
+                <div className="media-meta">
+                  <span>{fmtSize(f.size)}</span>
+                  <span>{fmtDate(f.modified)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {/* Link cards */}
+          {showLinks && links.map(l => (
+            <div key={l.id} className="media-card" onClick={() => window.open(l.url, '_blank')} style={{ cursor: 'pointer' }}>
+              <button className="media-delete" onClick={e => deleteLink(l.id, e)} title="Delete"><X size={12} /></button>
+              <div className="media-thumb">
+                <div className="media-doc-icon">
+                  {l.type === 'video' ? <Film size={32} /> : <Link2 size={32} />}
+                  <span style={{ fontSize: 10, textTransform: 'uppercase' }}>{l.type}</span>
+                </div>
+              </div>
+              <div className="media-info">
+                <div className="media-name" title={l.title}>{l.title}</div>
+                <div className="media-meta">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><ExternalLink size={9} /> Link</span>
+                  <span>{fmtDate(l.addedAt)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Credits section */}
+      <div className="section-card" style={{ marginTop: 16 }}>
+        <div className="section-title" style={{ justifyContent: 'space-between' }}>
+          <span><Users size={14} /> Credits</span>
+          <button className="btn btn-sm" onClick={() => setShowAddCredit(true)}><Plus size={12} /> Add</button>
+        </div>
+        {showAddCredit && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+            <input className="input" style={{ flex: 1, minWidth: 120 }} placeholder="Name" value={creditName} onChange={e => setCreditName(e.target.value)} autoFocus />
+            <input className="input" style={{ flex: 1, minWidth: 120 }} placeholder="Role (e.g. Photographer)" value={creditRole} onChange={e => setCreditRole(e.target.value)} />
+            <input className="input" style={{ flex: 1, minWidth: 120 }} placeholder="Website (optional)" value={creditUrl} onChange={e => setCreditUrl(e.target.value)} />
+            <button className="btn btn-primary btn-sm" onClick={addCredit}><Check size={12} /></button>
+            <button className="btn btn-sm" onClick={() => setShowAddCredit(false)}><X size={12} /></button>
+          </div>
+        )}
+        {credits.length === 0 && !showAddCredit && (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No credits yet. Add people who contributed to photos, videos, etc.</p>
+        )}
+        {credits.map(c => (
+          <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 12 }}>
+            <Users size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <span style={{ fontWeight: 500, flex: 1 }}>{c.name}</span>
+            {c.role && <span style={{ color: 'var(--text-muted)' }}>{c.role}</span>}
+            {c.url && <a href={c.url} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ color: 'var(--accent-blue)' }}><ExternalLink size={11} /></a>}
+            <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} onClick={() => deleteCredit(c.id)}><X size={11} /></button>
+          </div>
+        ))}
+      </div>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div className="media-lightbox" onClick={() => setLightbox(null)}>
+          <div style={{ position: 'absolute', top: 16, right: 16, color: 'rgba(255,255,255,0.5)', fontSize: 11, pointerEvents: 'none' }}>Press ESC to close</div>
+          {lightbox.type === 'image'
+            ? <img src={lightbox.src} alt="Preview" onClick={e => e.stopPropagation()} />
+            : <video src={lightbox.src} controls autoPlay onClick={e => e.stopPropagation()} style={{ maxWidth: '90vw', maxHeight: '90vh' }} />
+          }
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ─── Tab: Press ───────────────────────── */
+interface PressEntry { id: string; url: string; title: string; source: string; date: string; type: 'press' | 'scientific'; pdfFile: string | null; archiveStatus: 'pending' | 'done' | 'failed'; addedAt: string }
+
+function PressTab({ slug }: { slug: string }) {
+  const [entries, setEntries] = useState<PressEntry[]>([])
+  const [pressFilter, setPressFilter] = useState<'all' | 'press' | 'scientific'>('all')
+  const [showAdd, setShowAdd] = useState(false)
+  const [url, setUrl] = useState('')
+  const [title, setTitle] = useState('')
+  const [source, setSource] = useState('')
+  const [date, setDate] = useState('')
+  const [type, setType] = useState<'press' | 'scientific'>('press')
+
+  const fetchEntries = useCallback(() => {
+    fetch(`/api/project-press?slug=${slug}`)
+      .then(r => r.json())
+      .then(data => setEntries(data.entries || []))
+      .catch(() => {})
+  }, [slug])
+
+  useEffect(() => { fetchEntries() }, [fetchEntries])
+
+  // Poll for pending archival
+  useEffect(() => {
+    if (!entries.some(e => e.archiveStatus === 'pending')) return
+    const t = setInterval(fetchEntries, 3000)
+    return () => clearInterval(t)
+  }, [entries, fetchEntries])
+
+  const addEntry = async () => {
+    if (!url.trim()) return
+    await fetch('/api/project-press', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, url, title: title || url, source, date, type })
+    })
+    setUrl(''); setTitle(''); setSource(''); setDate(''); setShowAdd(false)
+    fetchEntries()
+  }
+
+  const deleteEntry = async (id: string) => {
+    await fetch(`/api/project-press?slug=${slug}&id=${id}`, { method: 'DELETE' })
+    fetchEntries()
+  }
+
+  const retryArchive = async (id: string) => {
+    await fetch('/api/project-press', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, id })
+    })
+    fetchEntries()
+  }
+
+  const filtered = entries.filter(e => pressFilter === 'all' || e.type === pressFilter)
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <h3 style={{ fontSize: 15, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Newspaper size={16} /> Press & Publications
+        </h3>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button className="btn btn-sm" onClick={() => setShowAdd(true)}><Plus size={12} /> Add Entry</button>
+          <button className="btn btn-sm" onClick={() => {
+            fetch('/api/open-finder', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: `project-docs/${slug}/press` })
+            })
+          }}><FolderOpenDot size={12} /> Open Folder</button>
+        </div>
+      </div>
+
+      {showAdd && (
+        <div className="section-card" style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div style={{ flex: 2, minWidth: 200 }}>
+              <label className="field-label">URL</label>
+              <input className="input" placeholder="https://..." value={url} onChange={e => setUrl(e.target.value)} autoFocus />
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <label className="field-label">Title</label>
+              <input className="input" placeholder="Article title" value={title} onChange={e => setTitle(e.target.value)} />
+            </div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <label className="field-label">Source</label>
+              <input className="input" placeholder="e.g. Nature, Wired" value={source} onChange={e => setSource(e.target.value)} />
+            </div>
+            <div style={{ minWidth: 120 }}>
+              <label className="field-label">Date</label>
+              <input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} />
+            </div>
+            <div style={{ minWidth: 100 }}>
+              <label className="field-label">Type</label>
+              <select className="select" value={type} onChange={e => setType(e.target.value as 'press' | 'scientific')} style={{ width: '100%' }}>
+                <option value="press">Press</option>
+                <option value="scientific">Scientific</option>
+              </select>
+            </div>
+            <button className="btn btn-primary btn-sm" onClick={addEntry}><Check size={12} /> Add</button>
+            <button className="btn btn-sm" onClick={() => setShowAdd(false)}><X size={12} /></button>
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>The web page will be automatically archived as PDF.</p>
+        </div>
+      )}
+
+      <div className="media-filter-bar">
+        {(['all', 'press', 'scientific'] as const).map(f => (
+          <button key={f} className={`media-filter-btn ${pressFilter === f ? 'active' : ''}`} onClick={() => setPressFilter(f)}>
+            {f === 'all' && <Newspaper size={11} />}
+            {f === 'press' && <Newspaper size={11} />}
+            {f === 'scientific' && <BookOpen size={11} />}
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+            <span style={{ opacity: 0.6 }}>{f === 'all' ? entries.length : entries.filter(e => e.type === f).length}</span>
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="empty-state">
+          <Newspaper size={32} />
+          <p>No press entries yet.</p>
+          <p style={{ fontSize: 11, marginTop: 4, color: 'var(--text-muted)' }}>Add links to press articles and scientific publications that mention your work.</p>
+        </div>
+      ) : (
+        <div className="section-card" style={{ padding: 0 }}>
+          {filtered.map((e, i) => (
+            <div key={e.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+              borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
+              fontSize: 12
+            }}>
+              <div style={{ width: 24, height: 24, borderRadius: '50%', background: e.type === 'scientific' ? 'var(--accent-purple-subtle)' : 'var(--accent-blue-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {e.type === 'scientific' ? <BookOpen size={12} style={{ color: 'var(--accent-purple)' }} /> : <Newspaper size={12} style={{ color: 'var(--accent-blue)' }} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                  {e.source && <span>{e.source}</span>}
+                  {e.date && <span>{new Date(e.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                {e.archiveStatus === 'pending' && <span style={{ fontSize: 10, color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: 3 }}><RefreshCw size={10} className="spin" /> Archiving…</span>}
+                {e.archiveStatus === 'failed' && <button className="btn btn-sm" style={{ fontSize: 10, color: 'var(--accent-red)' }} onClick={() => retryArchive(e.id)}><RefreshCw size={10} /> Retry</button>}
+                {e.pdfFile && (
+                  <a href={`/api/project-docs/file?slug=${slug}&name=${encodeURIComponent('press/' + e.pdfFile)}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ textDecoration: 'none' }}>
+                    <FileText size={10} /> PDF
+                  </a>
+                )}
+                <a href={e.url} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ textDecoration: 'none' }}>
+                  <ExternalLink size={10} /> Open
+                </a>
+                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} onClick={() => deleteEntry(e.id)} title="Delete"><Trash2 size={12} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   )
 }
@@ -2421,6 +3229,16 @@ function ProfileView() {
         ) : (
           <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No publications listed yet.</p>
         )}
+      </div>
+
+      {/* Media */}
+      <div className="section-card">
+        <MediaTab slug="_profile" />
+      </div>
+
+      {/* Press */}
+      <div className="section-card">
+        <PressTab slug="_profile" />
       </div>
 
       {/* Notes */}

@@ -42,3 +42,19 @@ next-env.d.ts
 
 /src/generated/prisma
 data/
+
+# Media files (large binaries) — metadata JSON is tracked
+project-docs/*/media/*.jpg
+project-docs/*/media/*.jpeg
+project-docs/*/media/*.png
+project-docs/*/media/*.webp
+project-docs/*/media/*.gif
+project-docs/*/media/*.mp4
+project-docs/*/media/*.webm
+project-docs/*/media/*.pdf
+
+# Press archived PDFs
+project-docs/*/press/*.pdf
+
+# Backups
+/backups/
