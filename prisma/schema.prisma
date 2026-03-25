@@ -45,6 +45,7 @@ model Grant {
   trlLevel    String    @default("")
   tags        String    @default("")
   notes       String    @default("")
+  status      String    @default("new")
   archived    Boolean   @default(false)
   seen        Boolean   @default(false)
   createdAt   DateTime  @default(now())

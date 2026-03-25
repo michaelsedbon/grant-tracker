@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { readFile, access } from 'fs/promises'
-import { join } from 'path'
+import { join, resolve } from 'path'
 
-const PAPERS_DIR = join(process.cwd(), '../../papers')
+const PAPERS_DIR = resolve(process.cwd(), '../../papers')
 
 export async function GET(
   _req: Request,
@@ -13,11 +13,16 @@ export async function GET(
     const decoded = decodeURIComponent(filename)
 
     // Security: prevent directory traversal
-    if (decoded.includes('..') || decoded.includes('/')) {
+    if (decoded.includes('..')) {
       return NextResponse.json({ error: 'Invalid filename' }, { status: 400 })
     }
 
-    const filePath = join(PAPERS_DIR, decoded)
+    const filePath = resolve(PAPERS_DIR, decoded)
+
+    // Ensure resolved path stays within PAPERS_DIR
+    if (!filePath.startsWith(PAPERS_DIR)) {
+      return NextResponse.json({ error: 'Invalid filename' }, { status: 400 })
+    }
     await access(filePath) // throws if not exists
     const buffer = await readFile(filePath)
 

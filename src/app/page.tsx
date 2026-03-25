@@ -7,7 +7,8 @@ import {
   X, ExternalLink, Star, Trash2, Edit3, Check, FolderOpenDot, Save,
   Archive, Eye, EyeOff, Unlink, Tag, Undo2, Redo2, Keyboard, User,
   GraduationCap, Medal, Briefcase, Lightbulb, Wrench, HelpCircle, ChevronDown, Upload,
-  Image, Film, Play, Newspaper, Link2, RefreshCw, HardDrive, Loader
+  Image, Film, Play, Newspaper, Link2, RefreshCw, HardDrive, Loader, Pencil,
+  Shield, ShieldCheck, ShieldX, ShieldAlert, ShieldQuestion, AlertTriangle, CheckCircle2, XCircle, Info, CircleDot
 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -47,7 +48,7 @@ interface Grant {
   currency: string; deadline: string | null; duration: string;
   url: string; portalUrl: string; faqUrl: string;
   eligibility: string; trlLevel: string; tags: string;
-  notes: string; archived: boolean; seen: boolean; createdAt: string; updatedAt: string;
+  notes: string; status: string; archived: boolean; seen: boolean; createdAt: string; updatedAt: string;
   documents?: Document[];
   projectLinks?: { id: string; status: string; project: { id: string; name: string; color: string } }[];
 }
@@ -119,6 +120,16 @@ const STATUS_OPTIONS = ['identified', 'preparing', 'submitted', 'under_review', 
 const PARTNER_STATUS = ['to_contact', 'contacted', 'confirmed', 'declined']
 const BUDGET_CATEGORIES = ['personnel', 'equipment', 'travel', 'consumables', 'subcontracting', 'other']
 
+const GRANT_STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: '', label: 'No status', color: '#666' },
+  { value: 'new', label: 'New', color: '#60a5fa' },
+  { value: 'reviewing', label: 'Reviewing', color: '#a78bfa' },
+  { value: 'applying', label: 'Applying', color: '#fbbf24' },
+  { value: 'applied', label: 'Applied', color: '#22c55e' },
+  { value: 'rejected', label: 'Rejected', color: '#ef4444' },
+  { value: 'awarded', label: 'Awarded', color: '#06b6d4' },
+]
+
 /* ─── Helpers ──────────────────────────── */
 function deadlineClass(deadline: string | null): string {
   if (!deadline) return ''
@@ -154,6 +165,7 @@ export default function GrantTracker() {
   const [loading, setLoading] = useState(true)
   const [globalGrantsMode, setGlobalGrantsMode] = useState(false)
   const [profileMode, setProfileMode] = useState(false)
+  const [archiveMode, setArchiveMode] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [showShortcuts, setShowShortcuts] = useState(false)
@@ -357,28 +369,52 @@ export default function GrantTracker() {
         <div style={{ flex: 1, overflowY: 'auto', padding: '4px 0' }}>
           {/* My Profile */}
           <div className={`project-item ${profileMode ? 'active' : ''}`}
-            onClick={() => { setProfileMode(true); setGlobalGrantsMode(false); setSelectedGrant(null) }}>
+            onClick={() => { setProfileMode(true); setGlobalGrantsMode(false); setArchiveMode(false); setSelectedGrant(null) }}>
             <span className="project-dot" style={{ backgroundColor: 'var(--accent-orange)' }} />
             <span className="project-name">My Profile</span>
             <User size={12} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
           </div>
           {/* All Grants global view */}
-          <div className={`project-item ${!profileMode && globalGrantsMode ? 'active' : ''}`}
-            onClick={() => { setGlobalGrantsMode(true); setProfileMode(false); setSelectedGrant(null) }}>
+          <div className={`project-item ${!profileMode && !archiveMode && globalGrantsMode ? 'active' : ''}`}
+            onClick={() => { setGlobalGrantsMode(true); setProfileMode(false); setArchiveMode(false); setSelectedGrant(null) }}>
             <span className="project-dot" style={{ backgroundColor: 'var(--accent-yellow)' }} />
             <span className="project-name">All Grants</span>
             <Tag size={12} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
           </div>
+          {/* Archive global view */}
+          <div className={`project-item ${archiveMode ? 'active' : ''}`}
+            onClick={() => { setArchiveMode(true); setProfileMode(false); setGlobalGrantsMode(false); setSelectedGrant(null) }}>
+            <span className="project-dot" style={{ backgroundColor: 'var(--accent-purple, #a78bfa)' }} />
+            <span className="project-name">Archive</span>
+            <Newspaper size={12} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
+          </div>
           <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />
-          {projects.map(p => (
+          {projects.filter(p => p.status !== 'archived').map(p => (
             <div key={p.id}
-              className={`project-item ${!globalGrantsMode && !profileMode && p.id === selectedProjectId ? 'active' : ''}`}
-              onClick={() => { setSelectedProjectId(p.id); setGlobalGrantsMode(false); setProfileMode(false); setSelectedGrant(null) }}>
+              className={`project-item ${!globalGrantsMode && !profileMode && !archiveMode && p.id === selectedProjectId ? 'active' : ''}`}
+              onClick={() => { setSelectedProjectId(p.id); setGlobalGrantsMode(false); setProfileMode(false); setArchiveMode(false); setSelectedGrant(null) }}>
               <span className="project-dot" style={{ backgroundColor: p.color }} />
               <span className="project-name">{p.name}</span>
               <span className="project-status">{p.status === 'placeholder' ? '○' : ''}</span>
             </div>
           ))}
+          {projects.some(p => p.status === 'archived') && (
+            <>
+              <div style={{ height: 1, background: 'var(--border)', margin: '4px 16px' }} />
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', padding: '4px 16px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Archive size={10} /> Archived
+              </div>
+              {projects.filter(p => p.status === 'archived').map(p => (
+                <div key={p.id}
+                  className={`project-item ${!globalGrantsMode && !profileMode && p.id === selectedProjectId ? 'active' : ''}`}
+                  onClick={() => { setSelectedProjectId(p.id); setGlobalGrantsMode(false); setProfileMode(false); setSelectedGrant(null) }}
+                  style={{ opacity: 0.5 }}>
+                  <span className="project-dot" style={{ backgroundColor: p.color }} />
+                  <span className="project-name">{p.name}</span>
+                </div>
+              ))}
+            </>
+          )}
         </div>
         {showAddProject && (
           <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
@@ -411,6 +447,15 @@ export default function GrantTracker() {
             </div>
             <div className="tab-content">
               <ProfileView />
+            </div>
+          </>
+        ) : archiveMode ? (
+          <>
+            <div className="tab-bar">
+              <button className="tab active"><Newspaper size={14} /> Archive</button>
+            </div>
+            <div className="tab-content">
+              <ArchiveView projects={projects} />
             </div>
           </>
         ) : globalGrantsMode ? (
@@ -1394,6 +1439,12 @@ function PressTab({ slug }: { slug: string }) {
   const [source, setSource] = useState('')
   const [date, setDate] = useState('')
   const [type, setType] = useState<'press' | 'scientific'>('press')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editUrl, setEditUrl] = useState('')
+  const [editTitle, setEditTitle] = useState('')
+  const [editSource, setEditSource] = useState('')
+  const [editDate, setEditDate] = useState('')
+  const [editType, setEditType] = useState<'press' | 'scientific'>('press')
 
   const fetchEntries = useCallback(() => {
     fetch(`/api/project-press?slug=${slug}`)
@@ -1431,6 +1482,20 @@ function PressTab({ slug }: { slug: string }) {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ slug, id })
     })
+    fetchEntries()
+  }
+
+  const startEdit = (e: PressEntry) => {
+    setEditingId(e.id); setEditUrl(e.url); setEditTitle(e.title); setEditSource(e.source || ''); setEditDate(e.date || ''); setEditType(e.type)
+  }
+
+  const saveEdit = async () => {
+    if (!editingId) return
+    await fetch('/api/project-press', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug, id: editingId, action: 'edit', url: editUrl, title: editTitle, source: editSource, date: editDate, type: editType })
+    })
+    setEditingId(null)
     fetchEntries()
   }
 
@@ -1508,33 +1573,67 @@ function PressTab({ slug }: { slug: string }) {
         <div className="section-card" style={{ padding: 0 }}>
           {filtered.map((e, i) => (
             <div key={e.id} style={{
-              display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+              display: 'flex', flexDirection: 'column', gap: 0,
               borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
-              fontSize: 12
             }}>
-              <div style={{ width: 24, height: 24, borderRadius: '50%', background: e.type === 'scientific' ? 'var(--accent-purple-subtle)' : 'var(--accent-blue-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {e.type === 'scientific' ? <BookOpen size={12} style={{ color: 'var(--accent-purple)' }} /> : <Newspaper size={12} style={{ color: 'var(--accent-blue)' }} />}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
-                  {e.source && <span>{e.source}</span>}
-                  {e.date && <span>{new Date(e.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+              {editingId === e.id ? (
+                <div style={{ padding: '10px 14px', display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end', fontSize: 12 }}>
+                  <div style={{ flex: 2, minWidth: 180 }}>
+                    <label className="field-label">URL</label>
+                    <input className="input" value={editUrl} onChange={ev => setEditUrl(ev.target.value)} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 120 }}>
+                    <label className="field-label">Title</label>
+                    <input className="input" value={editTitle} onChange={ev => setEditTitle(ev.target.value)} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 100 }}>
+                    <label className="field-label">Source</label>
+                    <input className="input" value={editSource} onChange={ev => setEditSource(ev.target.value)} />
+                  </div>
+                  <div style={{ minWidth: 110 }}>
+                    <label className="field-label">Date</label>
+                    <input className="input" type="date" value={editDate} onChange={ev => setEditDate(ev.target.value)} />
+                  </div>
+                  <div style={{ minWidth: 90 }}>
+                    <label className="field-label">Type</label>
+                    <select className="select" value={editType} onChange={ev => setEditType(ev.target.value as 'press' | 'scientific')} style={{ width: '100%' }}>
+                      <option value="press">Press</option>
+                      <option value="scientific">Scientific</option>
+                    </select>
+                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={saveEdit}><Check size={12} /> Save</button>
+                  <button className="btn btn-sm" onClick={() => setEditingId(null)}><X size={12} /></button>
                 </div>
-              </div>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
-                {e.archiveStatus === 'pending' && <span style={{ fontSize: 10, color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: 3 }}><RefreshCw size={10} className="spin" /> Archiving…</span>}
-                {e.archiveStatus === 'failed' && <button className="btn btn-sm" style={{ fontSize: 10, color: 'var(--accent-red)' }} onClick={() => retryArchive(e.id)}><RefreshCw size={10} /> Retry</button>}
-                {e.pdfFile && (
-                  <a href={`/api/project-docs/file?slug=${slug}&name=${encodeURIComponent('press/' + e.pdfFile)}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ textDecoration: 'none' }}>
-                    <FileText size={10} /> PDF
-                  </a>
-                )}
-                <a href={e.url} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ textDecoration: 'none' }}>
-                  <ExternalLink size={10} /> Open
-                </a>
-                <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} onClick={() => deleteEntry(e.id)} title="Delete"><Trash2 size={12} /></button>
-              </div>
+              ) : (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', fontSize: 12
+                }}>
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: e.type === 'scientific' ? 'var(--accent-purple-subtle)' : 'var(--accent-blue-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    {e.type === 'scientific' ? <BookOpen size={12} style={{ color: 'var(--accent-purple)' }} /> : <Newspaper size={12} style={{ color: 'var(--accent-blue)' }} />}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{e.title}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                      {e.source && <span>{e.source}</span>}
+                      {e.date && <span>{new Date(e.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexShrink: 0 }}>
+                    {e.archiveStatus === 'pending' && <span style={{ fontSize: 10, color: 'var(--accent-orange)', display: 'flex', alignItems: 'center', gap: 3 }}><RefreshCw size={10} className="spin" /> Archiving…</span>}
+                    {e.archiveStatus === 'failed' && <button className="btn btn-sm" style={{ fontSize: 10, color: 'var(--accent-red)' }} onClick={() => retryArchive(e.id)}><RefreshCw size={10} /> Retry</button>}
+                    {e.pdfFile && (
+                      <a href={`/api/project-docs/file?slug=${slug}&name=${encodeURIComponent('press/' + e.pdfFile)}`} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ textDecoration: 'none' }}>
+                        <FileText size={10} /> PDF
+                      </a>
+                    )}
+                    <a href={e.url} target="_blank" rel="noreferrer" className="btn btn-sm" style={{ textDecoration: 'none' }}>
+                      <ExternalLink size={10} /> Open
+                    </a>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} onClick={() => startEdit(e)} title="Edit"><Pencil size={12} /></button>
+                    <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} onClick={() => deleteEntry(e.id)} title="Delete"><Trash2 size={12} /></button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -2281,6 +2380,140 @@ function GrantsTab({ project, onSelectGrant, selectedGrant, onRefresh, onContext
 }
 
 /* ─── All Grants View ──────────────────── */
+/* ─── Archive View (Global Press Aggregation) ─── */
+interface ArchiveEntry { id: string; url: string; title: string; source: string; date: string; type: 'press' | 'scientific'; pdfFile: string | null; archiveStatus: string; addedAt: string; projectSlug: string; projectName: string; projectColor: string }
+
+function ArchiveView({ projects }: { projects: Project[] }) {
+  const [entries, setEntries] = useState<ArchiveEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | 'press' | 'scientific'>('all')
+  const [projectFilter, setProjectFilter] = useState<string>('all')
+
+  useEffect(() => {
+    const fetchAll = async () => {
+      setLoading(true)
+      const slugs = [
+        { slug: '_profile', name: 'Profile', color: 'var(--accent-orange)' },
+        ...projects.map(p => ({ slug: p.slug, name: p.name, color: p.color }))
+      ]
+      const allEntries: ArchiveEntry[] = []
+      for (const { slug, name, color } of slugs) {
+        try {
+          const res = await fetch(`/api/project-press?slug=${slug}`)
+          const data = await res.json()
+          for (const e of (data.entries || [])) {
+            allEntries.push({ ...e, projectSlug: slug, projectName: name, projectColor: color })
+          }
+        } catch { /* skip */ }
+      }
+      allEntries.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      setEntries(allEntries)
+      setLoading(false)
+    }
+    fetchAll()
+  }, [projects])
+
+  const filtered = entries.filter(e => {
+    if (filter !== 'all' && e.type !== filter) return false
+    if (projectFilter !== 'all' && e.projectSlug !== projectFilter) return false
+    return true
+  })
+
+  const projectsWithEntries = [...new Map(entries.map(e => [e.projectSlug, { slug: e.projectSlug, name: e.projectName, color: e.projectColor }])).values()]
+
+  const pressCount = entries.filter(e => e.type === 'press').length
+  const sciCount = entries.filter(e => e.type === 'scientific').length
+
+  return (
+    <div style={{ padding: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 16, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Newspaper size={18} /> Archive
+        </h2>
+        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+          {entries.length} entries across {projectsWithEntries.length} sources
+        </span>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        {(['all', 'press', 'scientific'] as const).map(f => (
+          <button key={f} className={`btn btn-sm ${filter === f ? 'btn-primary' : ''}`}
+            onClick={() => setFilter(f)} style={{ fontSize: 11, textTransform: 'capitalize' }}>
+            {f === 'all' ? `All (${entries.length})` : f === 'press' ? `Press (${pressCount})` : `Scientific (${sciCount})`}
+          </button>
+        ))}
+        <div style={{ width: 1, background: 'var(--border)', margin: '0 4px' }} />
+        <button className={`btn btn-sm ${projectFilter === 'all' ? 'btn-primary' : ''}`}
+          onClick={() => setProjectFilter('all')} style={{ fontSize: 11 }}>All Sources</button>
+        {projectsWithEntries.map(p => (
+          <button key={p.slug} className={`btn btn-sm ${projectFilter === p.slug ? 'btn-primary' : ''}`}
+            onClick={() => setProjectFilter(p.slug)} style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: p.color, flexShrink: 0 }} />
+            {p.name.length > 20 ? p.name.slice(0, 20) + '…' : p.name}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}><Loader size={20} className="spin" /></div>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12 }}>
+          <Newspaper size={24} style={{ opacity: 0.3, marginBottom: 8 }} />
+          <p>No entries found</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {filtered.map(e => (
+            <div key={e.id + e.projectSlug} style={{
+              display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px',
+              borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', fontSize: 12
+            }}>
+              <span style={{
+                fontSize: 9, fontWeight: 600, padding: '2px 6px', borderRadius: 4, flexShrink: 0,
+                background: e.type === 'scientific' ? 'rgba(33,150,243,0.15)' : 'rgba(76,175,80,0.15)',
+                color: e.type === 'scientific' ? '#2196f3' : '#4caf50'
+              }}>
+                {e.type === 'scientific' ? 'SCI' : 'PRESS'}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <a href={e.url} target="_blank" rel="noopener noreferrer" style={{
+                  color: 'var(--text-primary)', textDecoration: 'none', fontWeight: 500,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block'
+                }}>
+                  {e.title}
+                </a>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                  <span>{e.source}</span>
+                  {e.date && <span>{new Date(e.date).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</span>}
+                </div>
+              </div>
+              <span style={{
+                fontSize: 9, padding: '2px 8px', borderRadius: 4, flexShrink: 0,
+                background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)',
+                display: 'flex', alignItems: 'center', gap: 3
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: e.projectColor }} />
+                {e.projectName.length > 15 ? e.projectName.slice(0, 15) + '…' : e.projectName}
+              </span>
+              {e.archiveStatus === 'done' && e.pdfFile && (
+                <a href={`/api/project-docs/file?slug=${e.projectSlug}&subdir=press&file=${e.pdfFile}`}
+                  target="_blank" style={{ fontSize: 10, color: 'var(--accent-blue)', textDecoration: 'none', flexShrink: 0 }}>
+                  PDF
+                </a>
+              )}
+              <a href={e.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                <ExternalLink size={12} />
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AllGrantsView({ selectedGrant, onSelectGrant, projects }: { selectedGrant: ProjectGrantLink | null; onSelectGrant: (g: ProjectGrantLink | null) => void; projects: Project[] }) {
   const [grants, setGrants] = useState<Grant[]>([])
   const [showArchived, setShowArchived] = useState(false)
@@ -2507,6 +2740,16 @@ function AllGrantsView({ selectedGrant, onSelectGrant, projects }: { selectedGra
             <span style={{ fontWeight: 500, opacity: g.archived ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
               {g.name}
               {!g.seen && <span className="new-badge">NEW</span>}
+              {g.status && g.status !== 'new' && (() => {
+                const st = GRANT_STATUS_OPTIONS.find(s => s.value === g.status)
+                return st ? (
+                  <span style={{
+                    fontSize: 9, padding: '1px 6px', borderRadius: 6,
+                    background: `${st.color}22`, color: st.color, fontWeight: 600,
+                    textTransform: 'uppercase', letterSpacing: '0.3px', whiteSpace: 'nowrap'
+                  }}>{st.label}</span>
+                ) : null
+              })()}
             </span>
             <span style={{ color: 'var(--text-secondary)' }}>{g.funder}</span>
             <span className={deadlineClass(g.deadline)}>
@@ -2748,6 +2991,193 @@ function GrantNotesEditor({ grantId, noteType = 'checklist' }: { grantId: string
   )
 }
 
+/* ─── Eligibility Assessment Component ─ */
+function EligibilityAssessment({ eligibility, notes }: { eligibility: string; notes: string }) {
+  const [open, setOpen] = useState(false)
+
+  if (!eligibility) return null
+
+  // Parse eligibility status from text
+  const text = eligibility.toUpperCase()
+  let status: 'eligible' | 'not_eligible' | 'partial' | 'unclear' = 'unclear'
+  // Check PARTIALLY first since text may contain "NOT ELIGIBLE" in sub-sections
+  if (text.startsWith('PARTIALLY') || text.startsWith('PARTIAL')) status = 'partial'
+  else if (text.startsWith('NOT ELIGIBLE') || text.startsWith('NOT ELIGIBLE')) status = 'not_eligible'
+  else if (text.startsWith('UNCLEAR')) status = 'unclear'
+  else if (text.startsWith('ELIGIBLE') || text.startsWith('ELIGIBLE ✓') || text.startsWith('WAS POTENTIALLY') || text.startsWith('WAS ELIGIBLE')) status = 'eligible'
+
+  const statusConfig = {
+    eligible:     { label: 'Eligible',           color: '#22c55e', bg: 'rgba(34,197,94,0.1)',  border: 'rgba(34,197,94,0.3)',  Icon: ShieldCheck },
+    not_eligible: { label: 'Not Eligible',       color: '#ef4444', bg: 'rgba(239,68,68,0.1)',  border: 'rgba(239,68,68,0.3)',  Icon: ShieldX },
+    partial:      { label: 'Partially Eligible', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', Icon: ShieldAlert },
+    unclear:      { label: 'Unclear',            color: '#6b7280', bg: 'rgba(107,114,128,0.1)',border: 'rgba(107,114,128,0.3)',Icon: ShieldQuestion },
+  }
+
+  const cfg = statusConfig[status]
+  const StatusIcon = cfg.Icon
+
+  // Split eligibility text into sections
+  const lines = eligibility.split('\n').filter(l => l.trim())
+  const sections: { title: string; items: { text: string; type: 'check' | 'cross' | 'warn' | 'info' }[] }[] = []
+  let currentSection: typeof sections[0] | null = null
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    // Skip the first status line (already shown as badge)
+    if (trimmed.toUpperCase().startsWith('ELIGIBLE') || trimmed.toUpperCase().startsWith('NOT ELIGIBLE') || 
+        trimmed.toUpperCase().startsWith('PARTIALLY ELIGIBLE') || trimmed.toUpperCase().startsWith('UNCLEAR')) continue
+    
+    // Section headers (all caps lines ending with :)
+    if (/^[A-Z][A-Z\s()\/]+:/.test(trimmed) && !trimmed.startsWith('-')) {
+      currentSection = { title: trimmed.replace(/:$/, ''), items: [] }
+      sections.push(currentSection)
+      continue
+    }
+
+    // Items (lines starting with - or •)
+    if (/^[-•]\s/.test(trimmed) && currentSection) {
+      const itemText = trimmed.replace(/^[-•]\s+/, '')
+      let type: 'check' | 'cross' | 'warn' | 'info' = 'info'
+      if (itemText.includes('✓') || itemText.includes('✔')) type = 'check'
+      else if (itemText.includes('✗') || itemText.includes('✘') || itemText.toUpperCase().includes('NOT ELIGIBLE')) type = 'cross'
+      else if (itemText.includes('⚠️') || itemText.includes('⚠')) type = 'warn'
+      // Auto-detect based on section title
+      if (currentSection.title.toUpperCase().includes('NOT ELIGIBLE') || currentSection.title.toUpperCase().includes('RESTRICTION') || currentSection.title.toUpperCase().includes('BLOCKER')) type = 'cross'
+      if (currentSection.title.toUpperCase().includes('WHO CAN APPLY') || currentSection.title.toUpperCase().includes('ELIGIBLE') && !currentSection.title.toUpperCase().includes('NOT')) {
+        if (type === 'info') type = 'check'
+      }
+      currentSection.items.push({ text: itemText, type })
+      continue
+    }
+
+    // Plain text lines — add to current section or create new one
+    if (currentSection && trimmed) {
+      currentSection.items.push({ text: trimmed, type: 'info' })
+    } else if (trimmed && !currentSection) {
+      currentSection = { title: '', items: [{ text: trimmed, type: 'info' }] }
+      sections.push(currentSection)
+    }
+  }
+
+  // Parse key requirements from notes  
+  const deadlineMatch = notes?.match(/Deadline[:\s]+([^\n]+)/i)
+  const amountMatch = notes?.match(/(?:PRIZE|Amount|Grant)[:\s]+([^\n]+)/i)
+
+  const iconType = {
+    check: { icon: CheckCircle2, color: '#22c55e' },
+    cross: { icon: XCircle, color: '#ef4444' },
+    warn:  { icon: AlertTriangle, color: '#f59e0b' },
+    info:  { icon: CircleDot, color: '#6b7280' },
+  }
+
+  return (
+    <div className="detail-section" style={{ borderTop: '1px solid var(--border)' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: open ? cfg.bg : 'none',
+          border: open ? `1px solid ${cfg.border}` : '1px solid transparent',
+          borderRadius: 8, cursor: 'pointer', padding: '10px 12px',
+          color: open ? cfg.color : 'var(--text-primary)',
+          fontWeight: 600, fontSize: 13, transition: 'all 200ms'
+        }}
+      >
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <StatusIcon size={16} />
+          Eligibility Assessment
+          <span style={{
+            fontSize: 10, padding: '2px 10px', borderRadius: 10,
+            background: cfg.bg, color: cfg.color, fontWeight: 700,
+            border: `1px solid ${cfg.border}`
+          }}>
+            {cfg.label}
+          </span>
+        </span>
+        <ChevronRight size={14} style={{
+          transition: 'transform 200ms',
+          transform: open ? 'rotate(90deg)' : 'rotate(0)'
+        }} />
+      </button>
+
+      {open && (
+        <div style={{
+          marginTop: 8, padding: '12px',
+          background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+          border: '1px solid var(--border)',
+          animation: 'fadein 200ms ease'
+        }}>
+          {/* Quick Info Badges */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            {deadlineMatch && (
+              <span style={{
+                fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                background: 'rgba(99,102,241,0.1)', color: 'rgb(129,140,248)',
+                border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', gap: 4
+              }}>
+                <Calendar size={10} /> {deadlineMatch[1].trim().substring(0, 40)}
+              </span>
+            )}
+            {amountMatch && (
+              <span style={{
+                fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                background: 'rgba(52,211,153,0.1)', color: '#34d399',
+                border: '1px solid rgba(52,211,153,0.2)', display: 'flex', alignItems: 'center', gap: 4
+              }}>
+                <DollarSign size={10} /> {amountMatch[1].trim().substring(0, 40)}
+              </span>
+            )}
+          </div>
+
+          {/* Parsed Sections */}
+          {sections.map((section, si) => (
+            <div key={si} style={{ marginBottom: si < sections.length - 1 ? 12 : 0 }}>
+              {section.title && (
+                <div style={{
+                  fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                  color: section.title.toUpperCase().includes('NOT ELIGIBLE') || section.title.toUpperCase().includes('RESTRICTION')
+                    ? '#ef4444'
+                    : section.title.toUpperCase().includes('WHO CAN')
+                      ? '#22c55e'
+                      : 'var(--text-muted)',
+                  marginBottom: 6, paddingBottom: 4,
+                  borderBottom: '1px solid var(--border)'
+                }}>
+                  {section.title}
+                </div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {section.items.map((item, ii) => {
+                  const ItemIcon = iconType[item.type].icon
+                  return (
+                    <div key={ii} style={{
+                      display: 'flex', alignItems: 'flex-start', gap: 6,
+                      fontSize: 11, lineHeight: 1.5, color: 'var(--text-secondary)',
+                      padding: '2px 0'
+                    }}>
+                      <ItemIcon size={12} style={{
+                        flexShrink: 0, marginTop: 2,
+                        color: iconType[item.type].color
+                      }} />
+                      <span>{item.text}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          {sections.length === 0 && (
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
+              {eligibility}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode, projects }: {
   pg: ProjectGrantLink; onRefresh: () => void;
   notesPanelMode: 'checklist' | 'answers' | null;
@@ -2811,8 +3241,48 @@ function GrantDetailPanel({ pg, onRefresh, notesPanelMode, onSetNotesPanelMode, 
             {formatDate(g.deadline)} <span style={{ fontSize: 10, opacity: 0.7 }}>{daysUntil(g.deadline)}</span>
           </span>
         </div>
-        <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)' }}>{g.eligibility || g.description || 'No eligibility info.'}</p>
+        {g.description && <p style={{ fontSize: 12, lineHeight: 1.6, color: 'var(--text-secondary)', marginTop: 4 }}>{g.description.substring(0, 200)}{g.description.length > 200 ? '…' : ''}</p>}
       </div>
+
+      {/* ─── Grant Status Dropdown ── */}
+      <div className="detail-section">
+        <div className="detail-label">Grant Status</div>
+        <select
+          value={g.status || 'new'}
+          onChange={async (e) => {
+            await fetch(`/api/grants/${g.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: e.target.value })
+            })
+            onRefresh()
+          }}
+          style={{
+            width: '100%',
+            padding: '8px 12px',
+            borderRadius: 8,
+            border: `1px solid ${(GRANT_STATUS_OPTIONS.find(s => s.value === (g.status || 'new'))?.color || 'var(--border)')}44`,
+            background: `${(GRANT_STATUS_OPTIONS.find(s => s.value === (g.status || 'new'))?.color || '#666')}11`,
+            color: GRANT_STATUS_OPTIONS.find(s => s.value === (g.status || 'new'))?.color || 'var(--text-primary)',
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: 'pointer',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 10px center',
+            paddingRight: 30
+          }}
+        >
+          {GRANT_STATUS_OPTIONS.map(s => (
+            <option key={s.value} value={s.value}>{s.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* ─── Eligibility Assessment Panel ── */}
+      <EligibilityAssessment eligibility={g.eligibility} notes={g.notes} />
 
       {/* Links */}
       {(g.url || g.portalUrl || g.faqUrl) && (
@@ -3101,6 +3571,8 @@ function ProfileView() {
   const [bio, setBio] = useState('')
   const [notes, setNotes] = useState('')
   const [pubs, setPubs] = useState('')
+  const [exhibitions, setExhibitions] = useState<{exhibition:string;venue:string;location:string;year:string}[]>([])
+  const [booksCitations, setBooksCitations] = useState<{title:string;author:string;type:string;year:string;url:string}[]>([])
 
   const fetchProfile = useCallback(async () => {
     const res = await fetch('/api/profile')
@@ -3114,6 +3586,11 @@ function ProfileView() {
   }, [])
 
   useEffect(() => { fetchProfile() }, [fetchProfile])
+
+  useEffect(() => {
+    fetch('/api/profile-data?file=exhibitions.json').then(r => r.json()).then(d => Array.isArray(d) && setExhibitions(d)).catch(() => {})
+    fetch('/api/profile-data?file=books_citations.json').then(r => r.json()).then(d => Array.isArray(d) && setBooksCitations(d)).catch(() => {})
+  }, [])
 
   const saveField = async (field: string, value: string) => {
     await fetch('/api/profile', {
@@ -3182,6 +3659,63 @@ function ProfileView() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Exhibitions */}
+      <div className="section-card">
+        <div className="section-title"><Star size={14} /> Selected Exhibitions ({exhibitions.length})</div>
+        {exhibitions.length === 0 ? (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No exhibitions listed yet.</p>
+        ) : (
+          <div style={{ fontSize: 12, lineHeight: 1.8 }}>
+            {exhibitions.map((e, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, borderBottom: i < exhibitions.length - 1 ? '1px solid var(--border)' : 'none', padding: '4px 0' }}>
+                <span style={{ width: 60, flexShrink: 0, color: 'var(--text-muted)', fontSize: 11 }}>{e.year || '\u2014'}</span>
+                <span style={{ fontWeight: 500 }}>{e.exhibition || '\u2014'}</span>
+                {e.venue && <span style={{ color: 'var(--text-muted)' }}>@ {e.venue}</span>}
+                {e.location && <span style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }}>{e.location}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Books & Citations */}
+      <div className="section-card">
+        <div className="section-title"><BookOpen size={14} /> Books & Academic Citations ({booksCitations.length})</div>
+        {booksCitations.length === 0 ? (
+          <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>No books or citations listed yet.</p>
+        ) : (
+          <>
+            {booksCitations.filter(b => b.type === 'book').length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-orange)', marginBottom: 6, marginTop: 4 }}>📕 Mention in Books</div>
+                {booksCitations.filter(b => b.type === 'book').map((b, i) => (
+                  <div key={'b' + i} style={{ marginBottom: 8, fontSize: 12 }}>
+                    <div style={{ fontWeight: 500 }}>
+                      {b.url ? <a href={b.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text-primary)', textDecoration: 'none' }}>{b.title}</a> : b.title}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{b.author}{b.year ? ` (${b.year})` : ''}</div>
+                  </div>
+                ))}
+              </>
+            )}
+            {booksCitations.filter(b => b.type === 'citation').length > 0 && (
+              <>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent-blue)', marginBottom: 6, marginTop: 12 }}>📖 Citation in Academic Literature</div>
+                {booksCitations.filter(b => b.type === 'citation').map((b, i) => (
+                  <div key={'c' + i} style={{ marginBottom: 6, fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <span style={{ fontWeight: 500 }}>{b.title}</span>
+                      {b.author && <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>— {b.author}</span>}
+                    </div>
+                    {b.year && <span style={{ color: 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>{b.year}</span>}
+                  </div>
+                ))}
+              </>
+            )}
+          </>
+        )}
       </div>
 
       {/* Key Works */}

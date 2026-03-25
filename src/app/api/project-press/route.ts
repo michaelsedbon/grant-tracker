@@ -110,16 +110,37 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, entry })
 }
 
-// PUT: retry archival for a failed entry
+// PUT: retry archival OR edit entry fields
 export async function PUT(req: NextRequest) {
   const body = await req.json()
-  const { slug, id } = body
+  const { slug, id, action, url, title, source, date, type } = body
   if (!slug || !id) return NextResponse.json({ error: 'slug and id required' }, { status: 400 })
 
   const entries = await readEntries(slug)
   const entry = entries.find(e => e.id === id)
   if (!entry) return NextResponse.json({ error: 'entry not found' }, { status: 404 })
 
+  if (action === 'edit') {
+    const urlChanged = url && url !== entry.url
+    if (title !== undefined) entry.title = title
+    if (source !== undefined) entry.source = source
+    if (date !== undefined) entry.date = date
+    if (type !== undefined) entry.type = type
+    if (url !== undefined) entry.url = url
+    await writeEntries(slug, entries)
+
+    // Re-archive if URL changed
+    if (urlChanged) {
+      entry.archiveStatus = 'pending'
+      entry.pdfFile = null
+      await writeEntries(slug, entries)
+      archivePage(slug, entry).catch(console.error)
+    }
+
+    return NextResponse.json({ ok: true, entry })
+  }
+
+  // Default: retry archival
   entry.archiveStatus = 'pending'
   await writeEntries(slug, entries)
   archivePage(slug, entry).catch(console.error)

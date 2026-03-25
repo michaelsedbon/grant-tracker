@@ -1,0 +1,101 @@
+[
+  {
+    "id": "a27f99b7-8308-43b0-baa6-fee7fbd7670e",
+    "url": "https://www.institutfrancais.com/en/magazine/offre/cryptographic-beings",
+    "title": "Cryptographic Beings – Institut Français",
+    "source": "Institut Français",
+    "date": "2022-01-01",
+    "type": "press",
+    "pdfFile": "a27f99b7-8308-43b0-baa6-fee7fbd7670e.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.544Z"
+  },
+  {
+    "id": "513d6538-b5e4-4670-848a-274bcda3296e",
+    "url": "https://www.researchgate.net/publication/365512842_Cryptographic_Beings",
+    "title": "Cryptographic Beings (ResearchGate)",
+    "source": "ResearchGate",
+    "date": "2022-11-01",
+    "type": "scientific",
+    "pdfFile": "513d6538-b5e4-4670-848a-274bcda3296e.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.540Z"
+  },
+  {
+    "id": "a8723fd3-20a4-4b1b-b1fb-ee5509869b31",
+    "url": "https://ieeexplore.ieee.org/document/9963575",
+    "title": "Cryptographic Beings – IEEE Computer Graphics and Applications",
+    "source": "IEEE CG&A",
+    "date": "2022-11-01",
+    "type": "scientific",
+    "pdfFile": "a8723fd3-20a4-4b1b-b1fb-ee5509869b31.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.535Z"
+  },
+  {
+    "id": "034df38a-9c21-4ddd-a647-72b14db160a4",
+    "url": "https://designradiant.com/cryptographic-beings/",
+    "title": "Cryptographic Beings feature",
+    "source": "Design Radiant",
+    "date": "2023-01-01",
+    "type": "press",
+    "pdfFile": null,
+    "archiveStatus": "failed",
+    "addedAt": "2026-03-18T17:41:41.531Z"
+  },
+  {
+    "id": "f17d1baf-fff3-4feb-8f0c-92e9ef2f8d79",
+    "url": "https://bestdesignworld.com/cryptographic-beings/",
+    "title": "Cryptographic Beings showcase",
+    "source": "Best Design World",
+    "date": "2023-01-01",
+    "type": "press",
+    "pdfFile": "f17d1baf-fff3-4feb-8f0c-92e9ef2f8d79.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.522Z"
+  },
+  {
+    "id": "0c9ddcc4-211c-40fe-841c-9ae7d48cf2e5",
+    "url": "https://competition.adesignaward.com/gooddesign.php?ID=139584",
+    "title": "A Interactive Experiential and Immersive Design Award 2023",
+    "source": "A Design Award",
+    "date": "2023-01-01",
+    "type": "press",
+    "pdfFile": "0c9ddcc4-211c-40fe-841c-9ae7d48cf2e5.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.517Z"
+  },
+  {
+    "id": "e938d84c-9957-408c-9376-d3627e9a13d5",
+    "url": "https://www.adesignaward.com/design.php?ID=116714",
+    "title": "Silver A Design Award – Installation Design 2023",
+    "source": "A Design Award",
+    "date": "2023-01-01",
+    "type": "press",
+    "pdfFile": "e938d84c-9957-408c-9376-d3627e9a13d5.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.513Z"
+  },
+  {
+    "id": "f9df818f-c636-4f57-9384-bfe0108ceb51",
+    "url": "https://www.creativeapplications.net/member-submissions/cryptographic-beings-biology-as-digital-storage/",
+    "title": "Cryptographic Beings – Biology as digital storage",
+    "source": "Creative Applications",
+    "date": "2022-05-01",
+    "type": "press",
+    "pdfFile": "f9df818f-c636-4f57-9384-bfe0108ceb51.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.507Z"
+  },
+  {
+    "id": "a2d4d351-de9a-4708-883e-4cd58725cf00",
+    "url": "https://www.creativeapplications.net/project/cryptographic-beings-biology-as-digital-storage/",
+    "title": "https://www.creativeapplications.net/project/cryptographic-beings-biology-as-digital-storage/",
+    "source": "",
+    "date": "2026-03-18",
+    "type": "press",
+    "pdfFile": "a2d4d351-de9a-4708-883e-4cd58725cf00.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T16:46:48.487Z"
+  }
+]

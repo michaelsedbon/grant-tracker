@@ -1,0 +1,378 @@
+# ╔══════════════════════════════════════════════════════════════╗
+# ║  GRANT PROPOSAL — DESIGN SYSTEM                            ║
+# ║  Single source of truth for all PDF page templates.        ║
+# ║  Edit THIS file to change any visual rule.                 ║
+# ╚══════════════════════════════════════════════════════════════╝
+#
+# Derived from: Cryptographic Beings × NOVA (14-page proposal)
+# Format: All measurements in mm. Colors in hex. Fonts by name.
+
+# ── Page ──────────────────────────────────────────────────────
+page:
+  width_mm: 297           # A4 landscape
+  height_mm: 210
+  bleed_mm: 3
+  color_mode: sRGB        # screen-only output
+
+# ── Margins ───────────────────────────────────────────────────
+margins:
+  top_mm: 15
+  bottom_mm: 15
+  left_mm: 15
+  right_mm: 15            # 0 when right-column image is present
+
+# ── Grid ──────────────────────────────────────────────────────
+# Two-zone asymmetric layout for text+image pages.
+grid:
+  text_zone_pct: 65       # percentage of page width (NOVA original ≈ 65/35)
+  image_zone_pct: 35
+  gutter_mm: 0            # image starts flush after text zone
+  two_col_gutter_mm: 12   # for pages that split text zone into 2 cols
+
+# ── Colors ────────────────────────────────────────────────────
+colors:
+  black: "#000000"
+  white: "#FFFFFF"
+  off_white: "#F5F5F5"
+  dark_grey: "#333333"
+  mid_grey: "#808080"
+  accent_yellow: "#FFE500"
+  accent_coral: "#E8654A"
+
+# ── Fonts ─────────────────────────────────────────────────────
+# Font files must be placed in pdf-generator/fonts/
+# The system falls back to Helvetica if files are missing.
+fonts:
+  family: "Helvetica Neue"
+  fallback: "Helvetica"
+  weights:
+    regular:    "HelveticaNeue.ttf"
+    light:      "HelveticaNeue-Light.ttf"
+    light_italic: "HelveticaNeue-LightItalic.ttf"
+    ultralight: "HelveticaNeue-UltraLight.ttf"
+
+# ── Type Scale ────────────────────────────────────────────────
+# Each role maps to: font weight, size (pt), leading (pt),
+# tracking (pt), and case transform.
+type_scale:
+
+  cover_title:
+    weight: regular
+    size_pt: 34
+    leading_pt: 37
+    tracking_pt: 0
+    case: uppercase
+    color: white
+
+  cover_author:
+    weight: ultralight
+    size_pt: 15
+    leading_pt: 20
+    tracking_pt: 0.5
+    case: uppercase
+    color: white
+
+  section_heading:
+    weight: regular
+    size_pt: 30
+    leading_pt: 35
+    tracking_pt: 0
+    case: none
+    color: black
+
+  section_subtitle:
+    weight: light
+    size_pt: 13.5
+    leading_pt: 19
+    tracking_pt: 0
+    case: none
+    color: black
+
+  body:
+    weight: light
+    size_pt: 10.5
+    leading_pt: 16
+    tracking_pt: 0
+    case: none
+    color: black
+
+  body_bold:
+    weight: regular
+    size_pt: 10.5
+    leading_pt: 16
+    tracking_pt: 0
+    case: none
+    color: black
+
+  body_italic:
+    weight: light_italic
+    size_pt: 10.5
+    leading_pt: 16
+    tracking_pt: 0
+    case: none
+    color: black
+
+  caption:
+    weight: regular
+    size_pt: 10.5
+    leading_pt: 15
+    tracking_pt: 0
+    case: none
+    color: black
+
+  toc_category:
+    weight: regular
+    size_pt: 11.5
+    leading_pt: 18
+    tracking_pt: 0.5
+    case: uppercase
+    color: black
+
+  toc_entry:
+    weight: regular
+    size_pt: 10.5
+    leading_pt: 18
+    tracking_pt: 0
+    case: uppercase
+    color: black
+
+  rider_key:
+    weight: regular
+    size_pt: 10.5
+    leading_pt: 17
+    tracking_pt: 0
+    case: none
+    color: black
+
+  rider_value:
+    weight: light
+    size_pt: 10.5
+    leading_pt: 17
+    tracking_pt: 0
+    case: none
+    color: dark_grey
+
+  contact:
+    weight: regular
+    size_pt: 9.5
+    leading_pt: 12
+    tracking_pt: 0
+    case: none
+    color: black
+
+  badge:
+    weight: regular
+    size_pt: 12
+    leading_pt: 12
+    tracking_pt: 0.5
+    case: uppercase
+    color: black
+
+  annotation_label:
+    weight: regular
+    size_pt: 13
+    leading_pt: 13
+    tracking_pt: 0
+    case: none
+    color: black
+
+# ── Typography Rules ──────────────────────────────────────────
+typography_rules:
+  paragraph_spacing_mm: 6      # blank line between paragraphs
+  heading_top_offset_mm: 32    # distance from page top to H1
+  subtitle_gap_mm: 5           # gap between heading and subtitle
+  body_start_below_subtitle_mm: 12
+  no_indent: true              # never indent first line
+  underline_links: true        # hyperlinks get underlines
+
+# ── Page Templates ────────────────────────────────────────────
+# Each template defines the visual layout of one page type.
+# Template keys match the "type" field in the JSON input data.
+
+templates:
+
+  cover:
+    description: "Full-bleed hero image with project title, author, and grant badge"
+    image: full_bleed
+    elements:
+      - type: image
+        src: cover_image
+        position: full_bleed
+      - type: text
+        content: project.title
+        style: cover_title
+        anchor: bottom_left
+        offset_x_mm: 15
+        offset_y_mm: 45
+      - type: text
+        content: project.author
+        style: cover_author
+        anchor: bottom_left
+        offset_x_mm: 15
+        offset_y_mm: 30
+      - type: badge
+        content: grant.name
+        style: badge
+        bg_color: accent_yellow
+        anchor: bottom_right
+        offset_x_mm: 15
+        offset_y_mm: 15
+        padding_mm: 4
+
+  toc:
+    description: "Table of contents, auto-generated from sections list"
+    background: off_white
+    elements:
+      - type: heading
+        content: "TABLE OF CONTENTS"
+        style: section_heading
+      - type: toc_entries
+        category_style: toc_category
+        entry_style: toc_entry
+        dot_leader_color: mid_grey
+        group_spacing_mm: 18
+
+  text_image:
+    description: "Two-zone: text column (60%) + right-bleed image (40%)"
+    elements:
+      - type: heading
+        content: section.heading
+        style: section_heading
+      - type: text
+        content: section.subtitle
+        style: section_subtitle
+      - type: body
+        content: section.body
+        style: body
+        bold_style: body_bold
+        italic_style: body_italic
+      - type: image
+        src: section.image
+        position: right_column
+
+  video:
+    description: "Full-bleed video still with centered play button and caption bar"
+    elements:
+      - type: image
+        src: section.image
+        position: full_bleed
+      - type: play_button
+        diameter_mm: 20
+        color: white
+        opacity: 0.8
+        anchor: center
+      - type: caption_bar
+        content: section.caption
+        style: caption
+        bar_height_mm: 10
+        bar_color: white
+        bar_opacity: 0.9
+        anchor: bottom_center
+
+  illustration:
+    description: "Full-bleed render with optional annotation labels and bottom caption"
+    elements:
+      - type: image
+        src: section.image
+        position: full_bleed
+      - type: labels
+        items: section.labels
+        bg_color: accent_yellow
+        style: annotation_label
+        label_size_mm: 8
+      - type: caption_bar
+        content: section.caption
+        style: caption
+        bar_height_mm: 10
+        bar_color: white
+        anchor: bottom_center
+
+  section_opener:
+    description: "Full-bleed dark photograph with overlaid section title + subtitle"
+    elements:
+      - type: image
+        src: section.image
+        position: full_bleed
+      - type: text
+        content: section.heading
+        style: cover_title
+        anchor: bottom_left
+        offset_x_mm: 15
+        offset_y_mm: 40
+      - type: text
+        content: section.subtitle
+        style: cover_author
+        anchor: bottom_left
+        offset_x_mm: 15
+        offset_y_mm: 28
+
+  bio:
+    description: "Artist biography — text (60%) + portrait photo (40%)"
+    elements:
+      - type: heading
+        content: section.name
+        style: section_heading
+      - type: text
+        content: section.titles
+        style: section_subtitle
+      - type: body
+        content: section.bio_text
+        style: body
+        bold_style: body_bold
+        italic_style: body_italic
+      - type: contact_bar
+        content: section.contacts
+        style: contact
+        icon_size_mm: 4
+      - type: image
+        src: section.portrait
+        position: right_column
+
+  technical_rider:
+    description: "Key :: Value table (60%) + right-bleed image (40%)"
+    elements:
+      - type: heading
+        content: "TECHNICAL RIDER"
+        style: section_heading
+      - type: key_value_table
+        entries: section.entries
+        key_style: rider_key
+        value_style: rider_value
+        delimiter: "::"
+        row_spacing_mm: 8
+      - type: image
+        src: section.image
+        position: right_column
+
+  full_bleed_photo:
+    description: "Atmospheric full-bleed photo, no text overlay"
+    elements:
+      - type: image
+        src: section.image
+        position: full_bleed
+
+  dimensions:
+    description: "Full-bleed 3D render with dimension annotations"
+    elements:
+      - type: image
+        src: section.image
+        position: full_bleed
+      - type: text
+        content: "DIMENSIONS"
+        style: cover_author
+        anchor: bottom_left
+        offset_x_mm: 15
+        offset_y_mm: 15
+
+# ── Design Principles (for agent reference) ───────────────────
+principles:
+  - "Photography-first: every text page is paired with dramatic imagery"
+  - "Monochrome + one accent: black/white/grey + one vivid color per grant"
+  - "Single font family: hierarchy via weight (ultralight → light → regular)"
+  - "Asymmetric 65/35 grid: text left, image bleeds right"
+  - "Generous white space: never cram, let pages breathe"
+  - "Minimal decoration: no borders, rules, patterns, or watermarks"
+  - "ALL CAPS for headings and labels only"
+  - "Dark ↔ light alternation for visual rhythm"
+  - "No page numbers"
+  - "Restraint over embellishment"

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "becd101e-570f-4d78-9949-dd65c5d632d2",
+    "url": "https://www.michaelsedbon.com",
+    "title": "Michael Sedbon – Personal Website",
+    "source": "michaelsedbon.com",
+    "date": "2020-01-01",
+    "type": "press",
+    "pdfFile": "becd101e-570f-4d78-9949-dd65c5d632d2.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.603Z"
+  },
+  {
+    "id": "ce446c2b-2bd1-437d-9900-871ca4397c9e",
+    "url": "https://www.mindspaces.eu/michael-sedbon/",
+    "title": "Michael Sedbon – Mindspaces",
+    "source": "Mindspaces EU",
+    "date": "2020-01-01",
+    "type": "press",
+    "pdfFile": "ce446c2b-2bd1-437d-9900-871ca4397c9e.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.598Z"
+  },
+  {
+    "id": "9128ef07-b746-4b3c-804f-66322fd87719",
+    "url": "https://bdcampbell.net/2022/11/30/cryptographic-beings/",
+    "title": "Interview: Coupling artificial and natural systems",
+    "source": "bdcampbell.net / IEEE CG&A",
+    "date": "2022-11-01",
+    "type": "press",
+    "pdfFile": "9128ef07-b746-4b3c-804f-66322fd87719.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.593Z"
+  },
+  {
+    "id": "464af406-4341-4d8c-b882-c557db180156",
+    "url": "https://aiartists.org/michael-sedbon",
+    "title": "Michael Sedbon – Artist Profile",
+    "source": "AI Artists",
+    "date": "2020-01-01",
+    "type": "press",
+    "pdfFile": "464af406-4341-4d8c-b882-c557db180156.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.589Z"
+  },
+  {
+    "id": "a1d3f9ea-6fa8-4583-a65b-65cc1ed63509",
+    "url": "https://falling-walls.com/discover/videos/modulating-artificial-ecosystems-how-bio-mimetic-ai-could-help-design-sustainable-governance/",
+    "title": "Falling Walls 2021 – Art & Science Breakthrough Winner",
+    "source": "Falling Walls",
+    "date": "2021-11-01",
+    "type": "press",
+    "pdfFile": "a1d3f9ea-6fa8-4583-a65b-65cc1ed63509.pdf",
+    "archiveStatus": "done",
+    "addedAt": "2026-03-18T17:41:41.584Z"
+  }
+]
